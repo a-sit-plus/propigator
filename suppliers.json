@@ -1,0 +1,83 @@
+[
+  {
+    "type": "mvn",
+    "groups": [
+      "io.ktor", "org.jetbrains.*", "org.jetbrains"
+    ],
+    "supplier": {
+      "name": "JetBrains s.r.o",
+      "urls": [
+        "https://www.jetbrains.com"
+      ],
+      "contactName": "JetBrains",
+      "email": "compliance@jetbrains.com"
+    }
+  },
+  {
+    "type": "mvn",
+    "groups": ["at.asitplus", "at.asitplus.*"],
+    "supplier": {
+      "name": "A-SIT Plus GmbH",
+      "urls": [
+        "https://plus.a-sit.at",
+        "https://github.com/a-sit-plus"
+      ],
+      "contactName": "A-SIT Plus Opensource",
+      "email": "opensource@a-sit.at"
+    }
+  },
+  {
+    "type": "mvn",
+    "groups": [
+      "com.fasterxml.*"
+    ],
+    "supplier": {
+      "name": "FasterXML, LLC",
+      "urls": [
+        "https://fasterxml.com/"
+      ],
+      "contactName": "FasterXML",
+      "email": "info@fasterxml.com"
+    }
+  },
+  {
+    "type": "mvn",
+    "groups": [
+      "androidx.*"
+    ],
+    "supplier": {
+      "name": "Google LLC",
+      "urls": [
+        "https://developer.android.com/jetpack/androidx",
+        "https://android.googlesource.com/platform/frameworks/support"
+      ]
+    }
+  },
+  {
+    "type": "mvn",
+    "groups": [
+      "net.mamoe.yamlkt"
+    ],
+    "supplier": {
+      "name": "Him188",
+      "urls": [
+        "https://github.com/Him188/yamlkt"
+      ]
+    }
+  },
+  {
+    "type": "mvn",
+    "groups": [
+      "org.slf4j"
+    ],
+    "supplier": {
+      "name": "QOS.ch Sàrl",
+      "urls": [
+        "https://www.slf4j.org/",
+        "https://qos.ch/"
+      ],
+      "email": "sales@qos.ch",
+      "contactName": "QOS.ch"
+    }
+  }
+]

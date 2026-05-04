@@ -1,0 +1,20 @@
+[versions]
+kotlin="2.3.20"
+testballoon = "0.8.4-K2.3.20"
+yamlkt = "0.13.0"
+asp="20260428"
+agp = "8.12.3"
+sbombastic = "0.0.3"
+spotless = "8.2.1"
+
+[libraries]
+yamlkt = { module = "net.mamoe.yamlkt:yamlkt", version.ref = "yamlkt" }
+#for build logic conventions plugin, as it needs the artefact, not the plugin ID
+asp = { module = "at.asitplus.gradle:k2", version.ref = "asp" }
+agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+sbombastic = { module = "at.asitplus.gradle.sbombastic:at.asitplus.gradle.sbombastic.gradle.plugin", version.ref = "sbombastic" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+sbombastic = { id = "at.asitplus.gradle.sbombastic", version.ref = "sbombastic" }
+asp = { id = "at.asitplus.gradle.conventions", version.ref = "asp" }

@@ -1,0 +1,40 @@
+plugins {
+    `kotlin-dsl`
+}
+
+group = "at.asitplus.porpigator.buildlogic"
+
+gradlePlugin {
+    plugins {
+        create("propigatorConventions") {
+            id = "at.asitplus.propigator.buildlogic"
+            implementationClass = "at.asitplus.gradle.PropigatorConventionsPlugin"
+            displayName = "Propigator Build Logic Conventions"
+            description = "Common build logic for awesn1"
+        }
+    }
+}
+
+dependencies {
+    val kotlinVer = System.getenv("KOTLIN_VERSION_ENV")?.ifBlank { null } ?: libs.versions.kotlin.get()
+
+    implementation("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:$kotlinVer")
+    implementation(libs.agp)
+    implementation(libs.asp)
+    implementation(libs.sbombastic)
+}
+
+repositories {
+    mavenLocal {
+        content {
+            includeGroup("at.asitplus.gradle")
+        }
+    }
+    maven {
+        url = uri("https://raw.githubusercontent.com/a-sit-plus/gradle-conventions-plugin/mvn/repo")
+        name = "aspConventions"
+    }
+    gradlePluginPortal()
+    google()
+    mavenCentral()
+}
