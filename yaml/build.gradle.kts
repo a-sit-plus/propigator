@@ -21,5 +21,8 @@ kotlin {
             api(project(":common"))
             api(libs.yamlkt)
         }
+        commonTest {
+            kotlin.srcDir(project(":common").layout.projectDirectory.dir("src/commonTest/kotlin"))
+        }
     }
 }
