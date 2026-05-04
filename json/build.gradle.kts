@@ -19,5 +19,8 @@ kotlin {
             api(project(":common"))
             api(serialization("json"))
         }
+        commonTest {
+            kotlin.srcDir(project(":common").layout.projectDirectory.dir("src/commonTest/kotlin"))
+        }
     }
 }

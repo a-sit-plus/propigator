@@ -1,34 +1,32 @@
 package at.asitplus.propigator.yaml
 
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.propigator.common.NullWriteMode
+import at.asitplus.propigator.common.ObjectBackedTestData
+import at.asitplus.propigator.common.ObjectBackedTestPerson
+import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import net.mamoe.yamlkt.Yaml
-import net.mamoe.yamlkt.YamlNull
 import net.mamoe.yamlkt.YamlMap
+import net.mamoe.yamlkt.YamlNull
 import net.mamoe.yamlkt.YamlPrimitive
 
 @Serializable(with = PersonYamlObject.Serializer::class)
 private class PersonYamlObject(
     raw: YamlMap,
     yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedValidated {
-    var id: String by yamlProperty()
-    var name: String by yamlProperty()
-    var renamed: Boolean by yamlProperty("some_yaml_key")
+) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedTestPerson {
+    override var id: String by yamlProperty()
+    override var name: String by yamlProperty()
+    override var renamed: Boolean by yamlProperty("some_yaml_key")
     val readOnlyName: String by yamlProperty("name")
-
-    override fun validate() {
-        id
-        name
-    }
+    override val foo: ObjectBackedTestPerson.Foo by yamlProperty("foo")
 
     object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
 }
@@ -47,12 +45,16 @@ internal val YamlObjectBackedTest by testSuite {
                 name: Ada
                 some_yaml_key: true
                 unknown: 42
+                foo:
+                  bar: 2
+                  baz: eyz
                 """.trimIndent(),
             )
 
-            decoded.id shouldBe "p-1"
-            decoded.name shouldBe "Ada"
-            decoded.renamed shouldBe true
+            decoded.id shouldBe ObjectBackedTestData.id
+            decoded.name shouldBe ObjectBackedTestData.name
+            decoded.renamed shouldBe ObjectBackedTestData.renamed
+            decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.rawObject["unknown"]!!.content shouldBe "42"
 
             decoded.name = "Grace"
@@ -63,6 +65,7 @@ internal val YamlObjectBackedTest by testSuite {
             reparsed.name shouldBe "Grace"
             reparsed.nickname shouldBe "amazing"
             reparsed.rawObject["unknown"]!!.content shouldBe "42"
+            reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 
         "read member and extension val delegates from the backing object" {
