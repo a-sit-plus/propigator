@@ -1,24 +1,16 @@
 {
-  "include" : [
+  "include": [
     {
-      "module": "core",
-      "artifactName": "core"
+      "module": "common",
+      "artifactName": "common"
     },
     {
-      "module": "kxs",
-      "artifactName": "kxs"
+      "module": "json",
+      "artifactName": "json"
     },
     {
-      "module": "io",
-      "artifactName": "io"
-    },
-    {
-      "module": "kxs-io",
-      "artifactName": "kxs-io"
-    },
-    {
-      "module": "oid",
-      "artifactName": "oids"
+      "module": "yaml",
+      "artifactName": "yaml"
     }
   ]
 }

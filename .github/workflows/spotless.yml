@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - development
   pull_request:
   workflow_dispatch:
     inputs:
@@ -25,13 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Common Setup
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+          override-cache: ${{ github.ref_name == 'main' }}
       - name: check
         run: ./gradlew spotlessCheck

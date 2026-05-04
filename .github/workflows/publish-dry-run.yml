@@ -24,17 +24,11 @@ jobs:
       KOTLIN_VERSION_ENV: ${{ inputs.kotlin-version }}
       TESTBALLOON_VERSION_OVERRIDE: ${{ inputs.testballoon-version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Common Setup
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: 16.2.0
+          override-cache: 'false'
+          setup-xcode: 'true'
       - name: Set up Homebrew
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
@@ -54,11 +48,11 @@ jobs:
         if: success() || failure()        # always run so the table appears even if publish failed
         shell: bash
         run: |
-          ART_DIR="./repo/at/asitplus/awesn1"
+          ART_DIR="./repo/at/asitplus/propigator"
           ls -la $ART_DIR
           # Header
           {
-            echo "### Maven-local artifacts for \`at.asitplus.awesn1\`"
+            echo "### Maven-local artifacts for \`at.asitplus.propigator\`"
             echo ""
             echo "| Module | Version | File |"
             echo "|--------|---------|------|"

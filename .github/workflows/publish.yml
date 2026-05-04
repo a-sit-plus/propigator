@@ -9,27 +9,18 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 300
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Common Setup
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: 16.2.0
-      - name: Publish modules serially to Sonatype
+          override-cache: 'true'
+          setup-xcode: 'true'
+
+      - name: Publish Propigator modules serially to Sonatype
         run: |
           ./gradlew clean
-          ./gradlew :core:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :crypto:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :internal-utils:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :io:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :kxs:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :kxs-io:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :oids:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :common:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :json:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :yaml:publishToSonatype closeSonatypeStagingRepository
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.PUBLISH_SIGNING_KEYID }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.PUBLISH_SIGNING_KEY }}
@@ -42,14 +33,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Common Setup
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+          override-cache: 'false'
       - name: Build Dokka HTML
         run: ./gradlew dokkaGenerate
       - name: Setup Pages
