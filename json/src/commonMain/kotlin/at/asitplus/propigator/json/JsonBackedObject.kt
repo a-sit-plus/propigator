@@ -9,6 +9,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.serializer
+import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 
 class JsonBackingCodec(
@@ -45,8 +47,9 @@ open class JsonObjectBacked(
 
 inline fun <reified T> jsonProperty(
     key: String? = null,
+    serializer: KSerializer<T> = serializer(),
 ): ReadWriteProperty<JsonObjectBacked, T> =
-    backedProperty<JsonObjectBacked, String, JsonElement, T>(key)
+    backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer)
 
 inline fun <reified T> nullableJsonProperty(
     key: String? = null,
