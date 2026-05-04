@@ -1,21 +1,23 @@
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.propigator.common.NullWriteMode
+import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
+
+@Serializable
+private class Foo(
+    val bar: Int,
+    val baz: String
+)
 
 @Serializable(with = PersonJsonObject.Serializer::class)
 private class PersonJsonObject(
@@ -26,10 +28,12 @@ private class PersonJsonObject(
     var name: String by jsonProperty()
     var renamed: Boolean by jsonProperty("some_json_key")
     val readOnlyName: String by jsonProperty("name")
+    val foo: Foo by jsonProperty("foo")
 
     override fun validate() {
         id
         name
+        foo
     }
 
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
@@ -38,6 +42,7 @@ private class PersonJsonObject(
 private var PersonJsonObject.nickname: String? by nullableJsonProperty("nick", NullWriteMode.REMOVE_KEY)
 private var PersonJsonObject.middleName: String? by nullableJsonProperty("middle", NullWriteMode.STORE_NULL)
 private val PersonJsonObject.readOnlyNickname: String? by nullableJsonProperty("nick")
+//private val PersonJsonObject.foo: Foo by jsonProperty("foo")
 
 internal val JsonObjectBackedTest by testSuite {
     "JSON-backed objects" - {
@@ -45,12 +50,23 @@ internal val JsonObjectBackedTest by testSuite {
             val json = Json { prettyPrint = false }
             val decoded = json.decodeFromString(
                 PersonJsonObject.serializer(),
-                """{"id":"p-1","name":"Ada","some_json_key":true,"unknown":42}""",
+                """{"id":"p-1",
+                    "name":"Ada",
+                    "some_json_key":true,
+                    "unknown":42,
+                    "foo": {
+                        "bar": 2,
+                        "baz": "eyz"
+                    }
+                    }""".trimIndent(),
             )
 
             decoded.id shouldBe "p-1"
             decoded.name shouldBe "Ada"
             decoded.renamed shouldBe true
+            decoded.foo.shouldBeInstanceOf<Foo>()
+            decoded.foo.bar shouldBe 2
+            decoded.foo.baz shouldBe "eyz"
             decoded.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
             decoded.name = "Grace"
@@ -61,6 +77,7 @@ internal val JsonObjectBackedTest by testSuite {
             reparsed.name shouldBe "Grace"
             reparsed.nickname shouldBe "amazing"
             reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
+            reparsed.foo.shouldBeInstanceOf<Foo>()
         }
 
         "read member and extension val delegates from the backing object" {
