@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
 }
 
-group = "at.asitplus.porpigator.buildlogic"
+group = "at.asitplus.propigator.buildlogic"
 
 gradlePlugin {
     plugins {
@@ -10,7 +10,7 @@ gradlePlugin {
             id = "at.asitplus.propigator.buildlogic"
             implementationClass = "at.asitplus.gradle.PropigatorConventionsPlugin"
             displayName = "Propigator Build Logic Conventions"
-            description = "Common build logic for awesn1"
+            description = "Common build logic for Propigator"
         }
     }
 }

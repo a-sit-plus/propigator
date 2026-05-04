@@ -15,16 +15,12 @@ jobs:
           override-cache: 'true'
           setup-xcode: 'true'
 
-      - name: Publish modules serially to Sonatype
+      - name: Publish Propigator modules serially to Sonatype
         run: |
           ./gradlew clean
-          ./gradlew :core:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :crypto:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :internal-utils:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :io:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :kxs:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :kxs-io:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :oids:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :common:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :json:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :yaml:publishToSonatype closeSonatypeStagingRepository
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.PUBLISH_SIGNING_KEYID }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.PUBLISH_SIGNING_KEY }}
