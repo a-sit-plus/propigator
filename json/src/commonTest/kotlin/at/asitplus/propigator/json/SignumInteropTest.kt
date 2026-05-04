@@ -13,7 +13,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 
 
-internal val NimbusSignumInteropTest by testSuite {
+internal val SignumInteropTest by testSuite {
     "Signum-backed key attestation" - {
         "matches KeyAttestationJwt while preserving unmodelled claims" {
             val keyAttestation = joseCompliantSerializer.decodeFromString<KeyAttestation>(keyAttestationJwtClaims)
