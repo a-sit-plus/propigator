@@ -12,8 +12,8 @@ import kotlinx.serialization.KSerializer
 import net.mamoe.yamlkt.*
 import kotlin.properties.ReadWriteProperty
 
-public class YamlBackingCodec(
-    public val yaml: Yaml = Yaml.Default,
+class YamlBackingCodec(
+    val yaml: Yaml = Yaml.Default,
 ) : BackingCodec<YamlElement> {
     override fun <T> decode(serializer: KSerializer<T>, element: YamlElement): T =
         yaml.decodeFromString(serializer, element.toString())
@@ -25,13 +25,13 @@ public class YamlBackingCodec(
     override fun isNull(element: YamlElement): Boolean = element is YamlPrimitive && element.content == null
 }
 
-public open class YamlObjectBacked(
+open class YamlObjectBacked(
     initial: YamlMap,
     override val codec: YamlBackingCodec = YamlBackingCodec(),
 ) : ObjectBacked<String, YamlElement> {
     private val backing: MutableMap<YamlElement, YamlElement> = initial.content.toMutableMap()
 
-    public val rawObject: YamlMap
+    val rawObject: YamlMap
         get() = YamlMap(backing.toMap())
 
     override fun getElement(key: String): YamlElement? = rawObject[key]
@@ -48,12 +48,12 @@ public open class YamlObjectBacked(
     private fun findKey(key: String): YamlElement? = backing.keys.firstOrNull { it.content == key }
 }
 
-public inline fun <reified T> yamlProperty(
+inline fun <reified T> yamlProperty(
     key: String? = null,
 ): ReadWriteProperty<YamlObjectBacked, T> =
     backedProperty<YamlObjectBacked, String, YamlElement, T>(key)
 
-public inline fun <reified T> nullableYamlProperty(
+inline fun <reified T> nullableYamlProperty(
     key: String? = null,
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
 ): ReadWriteProperty<YamlObjectBacked, T?> =

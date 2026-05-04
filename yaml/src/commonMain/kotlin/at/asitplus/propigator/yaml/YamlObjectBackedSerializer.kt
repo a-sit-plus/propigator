@@ -11,7 +11,7 @@ import kotlinx.serialization.encoding.Encoder
 import net.mamoe.yamlkt.Yaml
 import net.mamoe.yamlkt.YamlMap
 
-public class YamlObjectBackedSerializer<T : YamlObjectBacked>(
+class YamlObjectBackedSerializer<T : YamlObjectBacked>(
     private val yaml: Yaml = Yaml.Default,
     private val create: (YamlMap, Yaml) -> T,
 ) : KSerializer<T> {

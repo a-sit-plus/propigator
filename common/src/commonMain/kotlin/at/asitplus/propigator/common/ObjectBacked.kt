@@ -8,14 +8,14 @@ package at.asitplus.propigator.common
  *
  * Implementations are expected to preserve unknown fields in their raw snapshot.
  */
-public interface ObjectBacked<K, V> {
-    public val codec: BackingCodec<V>
-    public fun getElement(key: K): V?
-    public fun putElement(key: K, value: V)
-    public fun removeElement(key: K)
+interface ObjectBacked<K, V> {
+    val codec: BackingCodec<V>
+    fun getElement(key: K): V?
+    fun putElement(key: K, value: V)
+    fun removeElement(key: K)
 }
 
 /** Optional parse-time validation hook for required delegated properties. */
-public interface ObjectBackedValidated {
-    public fun validate()
+interface ObjectBackedValidated {
+    fun validate()
 }

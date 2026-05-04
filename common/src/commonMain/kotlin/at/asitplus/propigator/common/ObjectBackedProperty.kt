@@ -10,7 +10,7 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 //TODO: this can go, as the underlyign format will do null handling, right!?
-public enum class NullWriteMode {
+enum class NullWriteMode {
     /** Store an explicit format-native null value. */
     STORE_NULL,
 
@@ -18,7 +18,7 @@ public enum class NullWriteMode {
     REMOVE_KEY,
 }
 
-public class RequiredBackedProperty<O, K, V, T>(
+class RequiredBackedProperty<O, K, V, T>(
     private val key: K?,
     private val serializer: KSerializer<T>,
 ) : ReadWriteProperty<O, T> where O : ObjectBacked<K, V> {
@@ -37,7 +37,7 @@ public class RequiredBackedProperty<O, K, V, T>(
     }
 }
 
-public class NullableBackedProperty<O, K, V, T>(
+class NullableBackedProperty<O, K, V, T>(
     private val key: K?,
     private val serializer: KSerializer<T>,
     private val nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
@@ -64,12 +64,12 @@ public class NullableBackedProperty<O, K, V, T>(
     }
 }
 
-public inline fun <O, K, V, reified T> backedProperty(
+inline fun <O, K, V, reified T> backedProperty(
     key: K? = null,
 ): ReadWriteProperty<O, T> where O : ObjectBacked<K, V> =
     RequiredBackedProperty(key, serializer())
 
-public inline fun <O, K, V, reified T> nullableBackedProperty(
+inline fun <O, K, V, reified T> nullableBackedProperty(
     key: K? = null,
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
 ): ReadWriteProperty<O, T?> where O : ObjectBacked<K, V> =

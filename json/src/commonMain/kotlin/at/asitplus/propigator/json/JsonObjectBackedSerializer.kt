@@ -14,7 +14,7 @@ import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
-public class JsonObjectBackedSerializer<T : JsonObjectBacked>(
+class JsonObjectBackedSerializer<T : JsonObjectBacked>(
     private val create: (JsonObject, Json) -> T,
 ) : KSerializer<T> {
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor

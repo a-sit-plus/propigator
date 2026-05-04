@@ -3,11 +3,7 @@
 
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.BackingCodec
-import at.asitplus.propigator.common.NullWriteMode
-import at.asitplus.propigator.common.ObjectBacked
-import at.asitplus.propigator.common.backedProperty
-import at.asitplus.propigator.common.nullableBackedProperty
+import at.asitplus.propigator.common.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -15,8 +11,8 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlin.properties.ReadWriteProperty
 
-public class JsonBackingCodec(
-    public val json: Json = Json.Default,
+class JsonBackingCodec(
+    val json: Json = Json.Default,
 ) : BackingCodec<JsonElement> {
     override fun <T> decode(serializer: KSerializer<T>, element: JsonElement): T =
         json.decodeFromJsonElement(serializer, element)
@@ -28,13 +24,13 @@ public class JsonBackingCodec(
     override fun isNull(element: JsonElement): Boolean = element is JsonNull
 }
 
-public open class JsonObjectBacked(
+open class JsonObjectBacked(
     initial: JsonObject,
     override val codec: JsonBackingCodec = JsonBackingCodec(),
 ) : ObjectBacked<String, JsonElement> {
     private val backing: MutableMap<String, JsonElement> = initial.toMutableMap()
 
-    public val rawObject: JsonObject
+    val rawObject: JsonObject
         get() = JsonObject(backing)
 
     override fun getElement(key: String): JsonElement? = backing[key]
@@ -47,12 +43,12 @@ public open class JsonObjectBacked(
     }
 }
 
-public inline fun <reified T> jsonProperty(
+inline fun <reified T> jsonProperty(
     key: String? = null,
 ): ReadWriteProperty<JsonObjectBacked, T> =
     backedProperty<JsonObjectBacked, String, JsonElement, T>(key)
 
-public inline fun <reified T> nullableJsonProperty(
+inline fun <reified T> nullableJsonProperty(
     key: String? = null,
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
 ): ReadWriteProperty<JsonObjectBacked, T?> =
