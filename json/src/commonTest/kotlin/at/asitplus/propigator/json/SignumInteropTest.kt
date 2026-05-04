@@ -27,13 +27,13 @@ internal val SignumInteropTest by testSuite {
 
             val forwarded = joseCompliantSerializer.encodeToString(keyAttestation)
             val forwardedClaims = joseCompliantSerializer.parseToJsonElement(forwarded).jsonObject
-
-            joseCompliantSerializer.decodeFromString<KeyAttestationJwt>(forwarded) shouldBe josefKeyAttestation
             forwardedClaims["jsonWebToken"] shouldBe null
             forwardedClaims["keyAttestationClaims"] shouldBe null
             forwardedClaims["future_claim"] shouldBe JsonObject(
                 mapOf("nested" to JsonPrimitive(true)),
             )
+
+            joseCompliantSerializer.decodeFromString<KeyAttestationJwt>(forwarded) shouldBe josefKeyAttestation
         }
 
         "rejects claims missing mandatory key-attestation fields" {
@@ -52,17 +52,17 @@ internal val SignumInteropTest by testSuite {
 }
 
 internal fun KeyAttestation.toKeyAttestationJwt() = KeyAttestationJwt(
-    issuer = issuer,
-    subject = subject,
-    audience = audience,
-    nonce = nonce,
-    notBefore = notBefore,
     issuedAt = issuedAt,
-    expiration = expiration,
-    eudiWalletInfo = eudiWalletInfo,
-    attestedKeys = attestedKeys,
-    keyStorage = keyStorage,
-    userAuthentication = userAuthentication,
-    certification = certification,
-    status = status,
+    issuer = jsonWebToken.issuer,
+    subject = jsonWebToken.subject,
+    audience = jsonWebToken.audience,
+    nonce = jsonWebToken.nonce,
+    notBefore = jsonWebToken.notBefore,
+    expiration = jsonWebToken.expiration,
+    eudiWalletInfo = jsonWebToken.eudiWalletInfo,
+    status = jsonWebToken.status,
+    attestedKeys = keyAttestationClaims.attestedKeys,
+    keyStorage = keyAttestationClaims.keyStorage,
+    userAuthentication = keyAttestationClaims.userAuthentication,
+    certification = keyAttestationClaims.certification,
 )
