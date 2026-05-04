@@ -11,14 +11,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Common Setup
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+          override-cache: 'false'
       - name: Build Dokka HTML
         run: ./gradlew dokkaGenerate
       - name: Setup Pages

@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - development
   pull_request:
   workflow_dispatch:
     inputs:
@@ -24,7 +23,7 @@ jobs:
   test-everything:
     uses: a-sit-plus/internal-workflows/.github/workflows/test-everything.yml@xcode-26
     with:
-      override-cache: ${{ github.ref_name == 'development' || github.ref_name == 'main' }}
+      override-cache: ${{ github.ref_name == 'main' }}
       matrix-file-name: ".github/config/test-strategy-matrix.json"
       kotlin-version: ${{ inputs.kotlin-version }}
       testballoon-version: ${{ inputs.testballoon-version }}
