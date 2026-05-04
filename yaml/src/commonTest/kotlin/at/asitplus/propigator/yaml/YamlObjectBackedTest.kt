@@ -84,6 +84,21 @@ internal val YamlObjectBackedTest by testSuite {
             obj.readOnlyNickname shouldBe "countess"
         }
 
+        "resolve subclass from the backing object" {
+            val obj = object : YamlObjectBacked(
+                YamlMap(
+                    mapOf(
+                        YamlPrimitive("bar") to YamlPrimitive("2"),
+                        YamlPrimitive("baz") to YamlPrimitive("eyz"),
+                    ),
+                ),
+            ) {
+                val foo: ObjectBackedTestPerson.Foo by yamlSubClass()
+            }
+
+            obj.foo shouldBe ObjectBackedTestData.foo
+        }
+
         "remove nullable keys when configured with REMOVE_KEY mode" {
             val obj = PersonYamlObject(
                 YamlMap(

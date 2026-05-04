@@ -51,8 +51,8 @@ inline fun <reified T> jsonProperty(
 ): ReadWriteProperty<JsonObjectBacked, T> =
     backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer)
 
-inline fun <reified T> jsonSubClass(): ReadOnlyProperty<JsonObjectBacked, T> =
-    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer<T>(), thisRef.rawObject) }
+inline fun <reified T> jsonSubClass(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
+    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
 
 
 inline fun <reified T> nullableJsonProperty(
