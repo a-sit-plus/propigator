@@ -1,7 +1,8 @@
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.propigator.common.NullWriteMode
+import at.asitplus.propigator.common.ObjectBackedTestData
+import at.asitplus.propigator.common.ObjectBackedTestPerson
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.testSuite
@@ -10,27 +11,18 @@ import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 
 @Serializable(with = PersonJsonObject.Serializer::class)
 private class PersonJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
-    var id: String by jsonProperty()
-    var name: String by jsonProperty()
-    var renamed: Boolean by jsonProperty("some_json_key")
+) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedTestPerson {
+    override var id: String by jsonProperty()
+    override var name: String by jsonProperty()
+    override var renamed: Boolean by jsonProperty("some_json_key")
     val readOnlyName: String by jsonProperty("name")
-
-    override fun validate() {
-        id
-        name
-    }
+    override val foo: ObjectBackedTestPerson.Foo by jsonProperty("foo")
 
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
@@ -45,12 +37,21 @@ internal val JsonObjectBackedTest by testSuite {
             val json = Json { prettyPrint = false }
             val decoded = json.decodeFromString(
                 PersonJsonObject.serializer(),
-                """{"id":"p-1","name":"Ada","some_json_key":true,"unknown":42}""",
+                """{"id":"p-1",
+                    "name":"Ada",
+                    "some_json_key":true,
+                    "unknown":42,
+                    "foo": {
+                        "bar": 2,
+                        "baz": "eyz"
+                    }
+                    }""".trimIndent(),
             )
 
-            decoded.id shouldBe "p-1"
-            decoded.name shouldBe "Ada"
-            decoded.renamed shouldBe true
+            decoded.id shouldBe ObjectBackedTestData.id
+            decoded.name shouldBe ObjectBackedTestData.name
+            decoded.renamed shouldBe ObjectBackedTestData.renamed
+            decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
             decoded.name = "Grace"
@@ -61,6 +62,7 @@ internal val JsonObjectBackedTest by testSuite {
             reparsed.name shouldBe "Grace"
             reparsed.nickname shouldBe "amazing"
             reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
+            reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 
         "read member and extension val delegates from the backing object" {

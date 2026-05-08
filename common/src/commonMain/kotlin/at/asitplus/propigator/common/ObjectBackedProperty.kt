@@ -66,11 +66,13 @@ class NullableBackedProperty<O, K, V, T>(
 
 inline fun <O, K, V, reified T> backedProperty(
     key: K? = null,
+    serializer: KSerializer<T> = serializer(),
 ): ReadWriteProperty<O, T> where O : ObjectBacked<K, V> =
-    RequiredBackedProperty(key, serializer())
+    RequiredBackedProperty(key, serializer)
 
 inline fun <O, K, V, reified T> nullableBackedProperty(
     key: K? = null,
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
+    serializer: KSerializer<T?> = serializer(),
 ): ReadWriteProperty<O, T?> where O : ObjectBacked<K, V> =
-    NullableBackedProperty(key, serializer(), nullWriteMode)
+    NullableBackedProperty(key, serializer, nullWriteMode)

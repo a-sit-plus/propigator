@@ -3,13 +3,11 @@
 
 package at.asitplus.propigator.yaml
 
-import at.asitplus.propigator.common.BackingCodec
-import at.asitplus.propigator.common.NullWriteMode
-import at.asitplus.propigator.common.ObjectBacked
-import at.asitplus.propigator.common.backedProperty
-import at.asitplus.propigator.common.nullableBackedProperty
+import at.asitplus.propigator.common.*
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.serializer
 import net.mamoe.yamlkt.*
+import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 
 class YamlBackingCodec(
@@ -50,8 +48,12 @@ open class YamlObjectBacked(
 
 inline fun <reified T> yamlProperty(
     key: String? = null,
+    serializer: KSerializer<T> = serializer(),
 ): ReadWriteProperty<YamlObjectBacked, T> =
-    backedProperty<YamlObjectBacked, String, YamlElement, T>(key)
+    backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer)
+
+inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<YamlObjectBacked, T> =
+    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
 
 inline fun <reified T> nullableYamlProperty(
     key: String? = null,
