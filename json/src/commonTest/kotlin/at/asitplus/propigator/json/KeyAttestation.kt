@@ -63,12 +63,12 @@ internal data class KeyAttestation(
     /**
      * We can serialize into data classes
      */
-    val jsonWebToken: JsonWebToken by jsonSubClass()
+    val jsonWebToken: JsonWebToken by jsonSlice()
 
     /**
      * And composite them as necessary
      */
-    val keyAttestationClaims: KeyAttestationClaims by jsonSubClass()
+    val keyAttestationClaims: KeyAttestationClaims by jsonSlice()
 
     /**
      * Defining a local property is optional but allows us to strengthen typing

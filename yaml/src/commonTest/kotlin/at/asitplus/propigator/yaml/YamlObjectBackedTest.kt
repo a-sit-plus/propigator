@@ -3,7 +3,6 @@ package at.asitplus.propigator.yaml
 import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.testSuite
@@ -84,7 +83,7 @@ internal val YamlObjectBackedTest by testSuite {
             obj.readOnlyNickname shouldBe "countess"
         }
 
-        "resolve subclass from the backing object" {
+        "resolve slice from the backing object" {
             val obj = object : YamlObjectBacked(
                 YamlMap(
                     mapOf(
@@ -93,7 +92,7 @@ internal val YamlObjectBackedTest by testSuite {
                     ),
                 ),
             ) {
-                val foo: ObjectBackedTestPerson.Foo by yamlSubClass()
+                val foo: ObjectBackedTestPerson.Foo by yamlSlice()
             }
 
             obj.foo shouldBe ObjectBackedTestData.foo

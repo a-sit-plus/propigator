@@ -52,7 +52,7 @@ inline fun <reified T> yamlProperty(
 ): ReadWriteProperty<YamlObjectBacked, T> =
     backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer)
 
-inline fun <reified T> yamlSubClass(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<YamlObjectBacked, T> =
+inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<YamlObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
 
 inline fun <reified T> nullableYamlProperty(
