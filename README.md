@@ -204,6 +204,47 @@ val PersonJsonObject.publicName: String by jsonProperty("name")
 val PersonJsonObject.optionalNick: String? by nullableJsonProperty("nick")
 ```
 
+## Whole-Object Slices
+
+Use `jsonSlice()` or `yamlSlice()` when you want to decode the entire backing object as an existing
+`@Serializable` type instead of defining one delegated property per field.
+
+A slice is a read-only view over `rawObject`. It uses the wrapper's configured `JsonBackingCodec` or
+`YamlBackingCodec`, so the same format settings and serializers apply.
+
+```kotlin
+@Serializable
+data class PublicClaims(
+    val iss: String,
+    val sub: String,
+    val aud: String,
+)
+
+@Serializable(with = ClaimsJsonObject.Serializer::class)
+class ClaimsJsonObject(
+    raw: JsonObject,
+    json: Json = Json.Default,
+) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
+    val claims: PublicClaims by jsonSlice()
+    var nonce: String? by nullableJsonProperty()
+
+    override fun validate() {
+        claims
+    }
+
+    object Serializer : KSerializer<ClaimsJsonObject> by JsonObjectBackedSerializer(::ClaimsJsonObject)
+}
+```
+
+`claims` is decoded from the whole JSON object, while `nonce` remains an editable property backed by
+the same raw object. Unknown fields are still preserved when the wrapper is serialized again.
+
+YAML-backed objects provide the same pattern with `yamlSlice()`:
+
+```kotlin
+val foo: Foo by yamlSlice()
+```
+
 ## Null Write Behavior
 
 Propigator supports per-property null write behavior.
