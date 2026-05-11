@@ -18,6 +18,8 @@ val propigatorVersion: String by extra
 version = propigatorVersion
 //end work around nexus publish bug
 
+group = "at.asitplus.propigator"
+
 
 val dokkaDir = rootProject.layout.buildDirectory.dir("docs")
 dokka {
