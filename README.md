@@ -6,7 +6,7 @@
   <img alt="Propigator – Typed properties over untamed data" src="propigator-b.png">
 </picture>
 
-# Propagating typed properties over untamed data
+# Propagating typed properties over untamed data using kotlinx.serialization
 
 [![A-SIT Plus Official](https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg)](https://plus.a-sit.at/open-source.html)
 [![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
