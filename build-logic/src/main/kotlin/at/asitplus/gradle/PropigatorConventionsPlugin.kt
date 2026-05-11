@@ -239,16 +239,10 @@ val Project.disableAppleTargets
             }
         }.getOrNull()))
 
-val Project.disableNdkTargets
-    get() = ("true" == (System.getenv("disableNdkTargets")
-        ?.also { Logger.lifecycle("  > Property disableNdkTargets set to $it from environment") }
-        ?: runCatching {
-            (project.extraProperties["disableNdkTargets"] as String).also {
-                Logger.lifecycle("  > Property disableNdkTargets set to $it from extra properties")
-            }
-        }.getOrNull()))
-
-fun KotlinMultiplatformExtension.propigatorTargets(disableWasm: Boolean = false) {
+fun KotlinMultiplatformExtension.propigatorTargets(
+    disableWasm: Boolean = false,
+    disableAndroidNativeTargets: Boolean = false
+) {
 
     jvm()
 
@@ -266,7 +260,7 @@ fun KotlinMultiplatformExtension.propigatorTargets(disableWasm: Boolean = false)
     }
 
     if (project.hasAndroidSdk()) {
-        if (project.hasAndroidNdk() && !project.disableNdkTargets) {
+        if (project.hasAndroidNdk() && !disableAndroidNativeTargets) {
             androidNativeX64()
             androidNativeX86()
             androidNativeArm32()
@@ -287,9 +281,9 @@ fun KotlinMultiplatformExtension.propigatorTargets(disableWasm: Boolean = false)
                 js().apply { browser { testTask { enabled = false } } },
                 // wasmWasi()
             )
-    ).forEach {
-        it.nodejs()
-    }
+            ).forEach {
+            it.nodejs()
+        }
     project.disableWebTestExecutablesWhenNoTests()
 
     linuxX64()

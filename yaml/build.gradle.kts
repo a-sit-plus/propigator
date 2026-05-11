@@ -14,7 +14,7 @@ propigatorConventions {
 }
 
 kotlin {
-    propigatorTargets(disableWasm = true)
+    propigatorTargets(disableWasm = true, disableAndroidNativeTargets = true)
 
     sourceSets {
         commonMain.dependencies {
