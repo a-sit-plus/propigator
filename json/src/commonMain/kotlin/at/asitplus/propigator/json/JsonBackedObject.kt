@@ -45,17 +45,18 @@ open class JsonObjectBacked(
     }
 }
 
-inline fun <reified T> jsonProperty(
+inline fun <reified T: Any> jsonProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
 ): ReadWriteProperty<JsonObjectBacked, T> =
     backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer)
 
-inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
-    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
-
-inline fun <reified T> nullableJsonProperty(
+inline fun <reified T: Any> nullableJsonProperty(
     key: String? = null,
+    serializer: KSerializer<T> = serializer(),
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
 ): ReadWriteProperty<JsonObjectBacked, T?> =
-    nullableBackedProperty<JsonObjectBacked, String, JsonElement, T>(key, nullWriteMode)
+    nullableBackedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer, nullWriteMode)
+
+inline fun <reified T: Any> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
+    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }

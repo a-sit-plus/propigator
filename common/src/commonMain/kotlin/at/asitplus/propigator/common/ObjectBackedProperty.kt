@@ -5,6 +5,7 @@ package at.asitplus.propigator.common
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -70,9 +71,9 @@ inline fun <O, K, V, reified T> backedProperty(
 ): ReadWriteProperty<O, T> where O : ObjectBacked<K, V> =
     RequiredBackedProperty(key, serializer)
 
-inline fun <O, K, V, reified T> nullableBackedProperty(
+inline fun <O, K, V, reified T: Any> nullableBackedProperty(
     key: K? = null,
+    serializer: KSerializer<T> = serializer(),
     nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
-    serializer: KSerializer<T?> = serializer(),
 ): ReadWriteProperty<O, T?> where O : ObjectBacked<K, V> =
-    NullableBackedProperty(key, serializer, nullWriteMode)
+    NullableBackedProperty(key, serializer.nullable, nullWriteMode)
