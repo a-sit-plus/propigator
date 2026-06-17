@@ -1,11 +1,9 @@
 package at.asitplus.propigator.common
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 
-internal val ObjectBackedCommonTest by testSuite {
+internal val ObjectBackedCommonTest by matrixSuite {
     "Object-backed common test data" - {
         "exposes a valid reusable person fixture" {
             ObjectBackedTestData.validate()

@@ -3,9 +3,7 @@ package at.asitplus.propigator.json
 import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
@@ -34,7 +32,7 @@ private var PersonJsonObject.middleName: String? by jsonProperty(
 )
 private val PersonJsonObject.readOnlyNickname: String? by jsonProperty("nick")
 
-internal val JsonObjectBackedTest by testSuite {
+internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {
         "round-trip known properties while preserving unknown fields" {
             val json = Json { prettyPrint = false }

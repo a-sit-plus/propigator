@@ -3,9 +3,7 @@ package at.asitplus.propigator.yaml
 import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
@@ -30,11 +28,11 @@ private class PersonYamlObject(
     object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
 }
 
-private var PersonYamlObject.nickname: String? by yamlProperty("nick", nullWriteMode =NullWriteMode.REMOVE_KEY)
-private var PersonYamlObject.middleName: String? by yamlProperty("middle", nullWriteMode =NullWriteMode.STORE_NULL)
+private var PersonYamlObject.nickname: String? by yamlProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
+private var PersonYamlObject.middleName: String? by yamlProperty("middle", nullWriteMode = NullWriteMode.STORE_NULL)
 private val PersonYamlObject.readOnlyNickname: String? by yamlProperty("nick")
 
-internal val YamlObjectBackedTest by testSuite {
+internal val YamlObjectBackedTest by matrixSuite {
     "YAML-backed objects" - {
         "round-trip known properties while preserving unknown fields" {
             val decoded = Yaml.decodeFromString(
