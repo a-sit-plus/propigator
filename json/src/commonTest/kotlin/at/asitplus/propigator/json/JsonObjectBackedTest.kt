@@ -27,12 +27,12 @@ private class PersonJsonObject(
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
 
-private var PersonJsonObject.nickname: String? by nullableJsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
-private var PersonJsonObject.middleName: String? by nullableJsonProperty(
+private var PersonJsonObject.nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
+private var PersonJsonObject.middleName: String? by jsonProperty(
     "middle",
     nullWriteMode = NullWriteMode.STORE_NULL
 )
-private val PersonJsonObject.readOnlyNickname: String? by nullableJsonProperty("nick")
+private val PersonJsonObject.readOnlyNickname: String? by jsonProperty("nick")
 
 internal val JsonObjectBackedTest by testSuite {
     "JSON-backed objects" - {

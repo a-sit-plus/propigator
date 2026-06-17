@@ -30,9 +30,9 @@ private class PersonYamlObject(
     object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
 }
 
-private var PersonYamlObject.nickname: String? by nullableYamlProperty("nick", nullWriteMode =NullWriteMode.REMOVE_KEY)
-private var PersonYamlObject.middleName: String? by nullableYamlProperty("middle", nullWriteMode =NullWriteMode.STORE_NULL)
-private val PersonYamlObject.readOnlyNickname: String? by nullableYamlProperty("nick")
+private var PersonYamlObject.nickname: String? by yamlProperty("nick", nullWriteMode =NullWriteMode.REMOVE_KEY)
+private var PersonYamlObject.middleName: String? by yamlProperty("middle", nullWriteMode =NullWriteMode.STORE_NULL)
+private val PersonYamlObject.readOnlyNickname: String? by yamlProperty("nick")
 
 internal val YamlObjectBackedTest by testSuite {
     "YAML-backed objects" - {
