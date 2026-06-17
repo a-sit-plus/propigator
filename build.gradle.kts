@@ -15,6 +15,7 @@ plugins {
 
 //work around nexus publish bug
 val propigatorVersion: String by extra
+group = "at.asitplus.propigator"
 version = propigatorVersion
 //end work around nexus publish bug
 
