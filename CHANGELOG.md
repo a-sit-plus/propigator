@@ -1,6 +1,7 @@
 # Changelog
 ### Unreleased
 - Updated backed property nullability so nullable fields are declared with nullable Kotlin types; this keeps the same optional-field functionality without a separate nullable delegate.
+- Tightened `JsonObjectBackedSerializer` so it rejects non-JSON encoders/decoders, non-object payloads, and `JsonObjectBacked` values created or serialized with different JSON configuration settings.
 
 ### Version 0.0.1
 - Initial version

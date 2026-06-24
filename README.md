@@ -131,6 +131,12 @@ val encoded = json.encodeToString(PersonJsonObject.serializer(), person)
 
 The encoded JSON contains the changed known fields and still contains `futureField`.
 
+JSON-backed objects retain the `Json` configuration used to create them. When you serialize a
+`JsonObjectBacked` value, use a `Json` instance with equivalent settings to the one used for
+deserialization or manual construction. `JsonObjectBackedSerializer` rejects mismatched settings
+with `SerializationException`; this avoids accidentally re-encoding delegated properties or slices
+with different serializer modules or JSON options.
+
 ## YAML Quick Start
 
 YAML works the same way, using `YamlObjectBacked` and YAML-specific delegates.
