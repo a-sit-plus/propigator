@@ -25,6 +25,15 @@ private class PersonJsonObject(
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
 
+@Serializable(with = IgnoringJsonConfigurationObject.Serializer::class)
+private class IgnoringJsonConfigurationObject(
+    raw: JsonObject,
+) : JsonObjectBacked(raw) {
+    object Serializer : KSerializer<IgnoringJsonConfigurationObject> by JsonObjectBackedSerializer(
+        create = { raw, _ -> IgnoringJsonConfigurationObject(raw) }
+    )
+}
+
 private var PersonJsonObject.nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
 private var PersonJsonObject.middleName: String? by jsonProperty(
     "middle",
@@ -64,6 +73,48 @@ internal val JsonObjectBackedTest by matrixSuite {
             reparsed.nickname shouldBe "amazing"
             reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
+        }
+
+        "encode with an equivalent Json configuration" {
+            val decoderJson = Json { ignoreUnknownKeys = true }
+            val encoderJson = Json { ignoreUnknownKeys = true }
+            val decoded = decoderJson.decodeFromString(
+                PersonJsonObject.serializer(),
+                """{"id":"p-1","name":"Ada","some_json_key":true,"ignored":true,"foo":{"bar":2,"baz":"eyz"}}""",
+            )
+
+            val encoded = encoderJson.encodeToString(PersonJsonObject.serializer(), decoded)
+            val reparsed = encoderJson.decodeFromString(PersonJsonObject.serializer(), encoded)
+
+            reparsed.name shouldBe ObjectBackedTestData.name
+            reparsed.rawObject["ignored"]!!.jsonPrimitive.boolean shouldBe true
+        }
+
+        "reject encoding with a different Json configuration" {
+            val decoderJson = Json { ignoreUnknownKeys = true }
+            val encoderJson = Json { prettyPrint = true }
+            val decoded = decoderJson.decodeFromString(
+                PersonJsonObject.serializer(),
+                """{"id":"p-1","name":"Ada","some_json_key":true,"foo":{"bar":2,"baz":"eyz"}}""",
+            )
+
+            shouldThrow<SerializationException> {
+                encoderJson.encodeToString(PersonJsonObject.serializer(), decoded)
+            }
+        }
+
+        "reject created objects with a different Json configuration" {
+            val json = Json { ignoreUnknownKeys = true }
+
+            shouldThrow<SerializationException> {
+                json.decodeFromString(IgnoringJsonConfigurationObject.serializer(), """{"ignored":true}""")
+            }
+        }
+
+        "reject non-object JSON payloads" {
+            shouldThrow<SerializationException> {
+                Json.decodeFromString(PersonJsonObject.serializer(), "[]")
+            }
         }
 
         "read member and extension val delegates from the backing object" {
