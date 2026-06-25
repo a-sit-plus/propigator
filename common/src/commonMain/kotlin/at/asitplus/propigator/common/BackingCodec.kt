@@ -10,7 +10,5 @@ import kotlinx.serialization.KSerializer
  */
 interface BackingCodec<E> {
     fun <T> decode(serializer: KSerializer<T>, element: E): T
-    fun <T> encode(serializer: KSerializer<T>, value: T): E
-    fun nullElement(): E
     fun isNull(element: E): Boolean
 }

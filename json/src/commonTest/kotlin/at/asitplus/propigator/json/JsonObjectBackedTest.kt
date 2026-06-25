@@ -1,6 +1,5 @@
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -16,21 +15,16 @@ private class PersonJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
 ) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedTestPerson {
-    override var id: String by jsonProperty()
-    override var name: String by jsonProperty()
-    override var renamed: Boolean by jsonProperty("some_json_key")
+    override val id: String by jsonProperty()
+    override val name: String by jsonProperty()
+    override val renamed: Boolean by jsonProperty("some_json_key")
     val readOnlyName: String by jsonProperty("name")
     override val foo: ObjectBackedTestPerson.Foo by jsonProperty("foo")
 
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
 
-private var PersonJsonObject.nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
-private var PersonJsonObject.middleName: String? by jsonProperty(
-    "middle",
-    nullWriteMode = NullWriteMode.STORE_NULL
-)
-private val PersonJsonObject.readOnlyNickname: String? by jsonProperty("nick")
+private val PersonJsonObject.nickname: String? by jsonProperty("nick")
 
 internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {
@@ -55,13 +49,9 @@ internal val JsonObjectBackedTest by matrixSuite {
             decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
-            decoded.name = "Grace"
-            decoded.nickname = "amazing"
-
             val encoded = json.encodeToString(PersonJsonObject.serializer(), decoded)
             val reparsed = json.decodeFromString(PersonJsonObject.serializer(), encoded)
-            reparsed.name shouldBe "Grace"
-            reparsed.nickname shouldBe "amazing"
+            reparsed.name shouldBe ObjectBackedTestData.name
             reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
@@ -75,35 +65,7 @@ internal val JsonObjectBackedTest by matrixSuite {
             })
 
             obj.readOnlyName shouldBe "Ada"
-            obj.readOnlyNickname shouldBe "countess"
-        }
-
-        "remove nullable keys when configured with REMOVE_KEY mode" {
-            val obj = PersonJsonObject(buildJsonObject {
-                put("id", "p-1")
-                put("name", "Ada")
-                put("some_json_key", true)
-            })
-            obj.nickname = "x"
-            obj.nickname shouldBe "x"
-            obj.nickname = null
-            obj.rawObject["nick"] shouldBe null
-        }
-
-        "store explicit null for one property while removing another on the same object" {
-            val obj = PersonJsonObject(buildJsonObject {
-                put("id", "p-1")
-                put("name", "Ada")
-                put("some_json_key", true)
-                put("middle", "Byron")
-                put("nick", "countess")
-            })
-
-            obj.middleName = null
-            obj.nickname = null
-
-            obj.rawObject["middle"] shouldBe JsonNull
-            obj.rawObject["nick"] shouldBe null
+            obj.nickname shouldBe "countess"
         }
 
         "reject payloads missing mandatory delegated properties" {

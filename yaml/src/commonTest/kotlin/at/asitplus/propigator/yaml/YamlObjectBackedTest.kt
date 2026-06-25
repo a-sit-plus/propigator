@@ -1,6 +1,5 @@
 package at.asitplus.propigator.yaml
 
-import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -11,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import net.mamoe.yamlkt.Yaml
 import net.mamoe.yamlkt.YamlMap
-import net.mamoe.yamlkt.YamlNull
 import net.mamoe.yamlkt.YamlPrimitive
 
 @Serializable(with = PersonYamlObject.Serializer::class)
@@ -19,18 +17,16 @@ private class PersonYamlObject(
     raw: YamlMap,
     yaml: Yaml = Yaml.Default,
 ) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedTestPerson {
-    override var id: String by yamlProperty()
-    override var name: String by yamlProperty()
-    override var renamed: Boolean by yamlProperty("some_yaml_key")
+    override val id: String by yamlProperty()
+    override val name: String by yamlProperty()
+    override val renamed: Boolean by yamlProperty("some_yaml_key")
     val readOnlyName: String by yamlProperty("name")
     override val foo: ObjectBackedTestPerson.Foo by yamlProperty("foo")
 
     object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
 }
 
-private var PersonYamlObject.nickname: String? by yamlProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
-private var PersonYamlObject.middleName: String? by yamlProperty("middle", nullWriteMode = NullWriteMode.STORE_NULL)
-private val PersonYamlObject.readOnlyNickname: String? by yamlProperty("nick")
+private val PersonYamlObject.nickname: String? by yamlProperty("nick")
 
 internal val YamlObjectBackedTest by matrixSuite {
     "YAML-backed objects" - {
@@ -54,13 +50,9 @@ internal val YamlObjectBackedTest by matrixSuite {
             decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.rawObject["unknown"]!!.content shouldBe "42"
 
-            decoded.name = "Grace"
-            decoded.nickname = "amazing"
-
             val encoded = Yaml.encodeToString(PersonYamlObject.serializer(), decoded)
             val reparsed = Yaml.decodeFromString(PersonYamlObject.serializer(), encoded)
-            reparsed.name shouldBe "Grace"
-            reparsed.nickname shouldBe "amazing"
+            reparsed.name shouldBe ObjectBackedTestData.name
             reparsed.rawObject["unknown"]!!.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
@@ -78,7 +70,7 @@ internal val YamlObjectBackedTest by matrixSuite {
             )
 
             obj.readOnlyName shouldBe "Ada"
-            obj.readOnlyNickname shouldBe "countess"
+            obj.nickname shouldBe "countess"
         }
 
         "resolve slice from the backing object" {
@@ -94,42 +86,6 @@ internal val YamlObjectBackedTest by matrixSuite {
             }
 
             obj.foo shouldBe ObjectBackedTestData.foo
-        }
-
-        "remove nullable keys when configured with REMOVE_KEY mode" {
-            val obj = PersonYamlObject(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("id") to YamlPrimitive("p-1"),
-                        YamlPrimitive("name") to YamlPrimitive("Ada"),
-                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
-                    ),
-                ),
-            )
-            obj.nickname = "x"
-            obj.nickname shouldBe "x"
-            obj.nickname = null
-            obj.rawObject["nick"] shouldBe null
-        }
-
-        "store explicit null for one property while removing another on the same object" {
-            val obj = PersonYamlObject(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("id") to YamlPrimitive("p-1"),
-                        YamlPrimitive("name") to YamlPrimitive("Ada"),
-                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
-                        YamlPrimitive("middle") to YamlPrimitive("Byron"),
-                        YamlPrimitive("nick") to YamlPrimitive("countess"),
-                    ),
-                ),
-            )
-
-            obj.middleName = null
-            obj.nickname = null
-
-            obj.rawObject["middle"] shouldBe YamlNull
-            obj.rawObject["nick"] shouldBe null
         }
 
         "reject payloads missing mandatory delegated properties" {

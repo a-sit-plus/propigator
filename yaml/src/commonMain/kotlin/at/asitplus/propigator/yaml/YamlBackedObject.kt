@@ -8,7 +8,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 import net.mamoe.yamlkt.*
 import kotlin.properties.ReadOnlyProperty
-import kotlin.properties.ReadWriteProperty
 
 class YamlBackingCodec(
     val yaml: Yaml = Yaml.Default,
@@ -16,10 +15,6 @@ class YamlBackingCodec(
     override fun <T> decode(serializer: KSerializer<T>, element: YamlElement): T =
         yaml.decodeFromString(serializer, element.toString())
 
-    override fun <T> encode(serializer: KSerializer<T>, value: T): YamlElement =
-        yaml.decodeYamlFromString(yaml.encodeToString(serializer, value))
-
-    override fun nullElement(): YamlElement = YamlNull
     override fun isNull(element: YamlElement): Boolean = element is YamlPrimitive && element.content == null
 }
 
@@ -27,31 +22,19 @@ open class YamlObjectBacked(
     initial: YamlMap,
     override val codec: YamlBackingCodec = YamlBackingCodec(),
 ) : ObjectBacked<String, YamlElement> {
-    private val backing: MutableMap<YamlElement, YamlElement> = initial.content.toMutableMap()
+    private val backing: YamlMap = initial
 
     val rawObject: YamlMap
-        get() = YamlMap(backing.toMap())
+        get() = backing
 
-    override fun getElement(key: String): YamlElement? = rawObject[key]
-
-    override fun putElement(key: String, value: YamlElement) {
-        val actualKey = findKey(key) ?: YamlPrimitive(key)
-        backing[actualKey] = value
-    }
-
-    override fun removeElement(key: String) {
-        findKey(key)?.let { backing.remove(it) }
-    }
-
-    private fun findKey(key: String): YamlElement? = backing.keys.firstOrNull { it.content == key }
+    override fun getElement(key: String): YamlElement? = backing[key]
 }
 
 inline fun <reified T> yamlProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
-    nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL
-): ReadWriteProperty<YamlObjectBacked, T> =
-    backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer, nullWriteMode)
+): ReadOnlyProperty<YamlObjectBacked, T> =
+    backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer)
 
 inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<YamlObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
