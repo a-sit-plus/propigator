@@ -59,7 +59,7 @@ internal val keyAttestationJwtClaims = """
 internal data class KeyAttestation(
     private val raw: JsonObject,
     private val json: Json = joseCompliantSerializer,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
+) : JsonObjectBacked(raw, json), ObjectBackedValidated {
     /**
      * We can serialize into data classes
      */

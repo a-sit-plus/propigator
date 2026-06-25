@@ -7,34 +7,28 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 
-class BackedProperty<O, K, V, T>(
-    private val key: K?,
-    private val serializer: KSerializer<T>,
-) : ReadOnlyProperty<O, T> where O : ObjectBacked<K, V> {
-    override fun getValue(thisRef: O, property: KProperty<*>): T {
-        val actualKey = actualKey(property)
+@PublishedApi
+internal fun <O, V, T> createBackedProperty(
+    key: String?,
+    serializer: KSerializer<T>,
+): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    ReadOnlyProperty { thisRef, property ->
+        val actualKey = key ?: property.name
         val element = thisRef.getElement(actualKey)
-            ?: return readNull(actualKey)
-        if (thisRef.codec.isNull(element)) return readNull(actualKey)
-        return thisRef.codec.decode(serializer, element)
+            ?: return@ReadOnlyProperty readNull(serializer, actualKey)
+        if (thisRef.isNull(element)) return@ReadOnlyProperty readNull(serializer, actualKey)
+        thisRef.decode(serializer, element)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun actualKey(property: KProperty<*>): K =
-        key ?: (property.name as? K)
-        ?: throw SerializationException("property ${property.name} is not identifiable by backing key type")
-
-    @Suppress("UNCHECKED_CAST")
-    private fun readNull(actualKey: K): T {
-        if (serializer.descriptor.isNullable) return null as T
-        throw SerializationException("Missing required backing property: $actualKey")
-    }
+@Suppress("UNCHECKED_CAST")
+private fun <T> readNull(serializer: KSerializer<T>, actualKey: String): T {
+    if (serializer.descriptor.isNullable) return null as T
+    throw SerializationException("Missing required backing property: $actualKey")
 }
 
-inline fun <O, K, V, reified T> backedProperty(
-    key: K? = null,
+inline fun <O, V, reified T> backedProperty(
+    key: String? = null,
     serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<O, T> where O : ObjectBacked<K, V> =
-    BackedProperty(key, serializer)
+): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    createBackedProperty(key, serializer)

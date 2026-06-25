@@ -14,7 +14,7 @@ import kotlinx.serialization.json.*
 private class PersonJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedTestPerson {
+) : JsonObjectBacked(raw, json), ObjectBackedTestPerson {
     override val id: String by jsonProperty()
     override val name: String by jsonProperty()
     override val renamed: Boolean by jsonProperty("some_json_key")

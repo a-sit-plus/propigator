@@ -3,7 +3,6 @@
 
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.BackingCodec
 import at.asitplus.propigator.common.ObjectBacked
 import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.KSerializer
@@ -14,25 +13,16 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
-class JsonBackingCodec(
-    val json: Json = Json.Default,
-) : BackingCodec<JsonElement> {
+open class JsonObjectBacked(
+    val rawObject: JsonObject,
+    private val json: Json = Json.Default,
+) : ObjectBacked<JsonElement> {
     override fun <T> decode(serializer: KSerializer<T>, element: JsonElement): T =
         json.decodeFromJsonElement(serializer, element)
 
     override fun isNull(element: JsonElement): Boolean = element is JsonNull
-}
 
-open class JsonObjectBacked(
-    initial: JsonObject,
-    override val codec: JsonBackingCodec = JsonBackingCodec(),
-) : ObjectBacked<String, JsonElement> {
-    private val backing: JsonObject = initial
-
-    val rawObject: JsonObject
-        get() = backing
-
-    override fun getElement(key: String): JsonElement? = backing[key]
+    override fun getElement(key: String): JsonElement? = rawObject[key]
 }
 
 /**
@@ -47,7 +37,7 @@ inline fun <reified T> jsonProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
 ): ReadOnlyProperty<JsonObjectBacked, T> =
-    backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer)
+    backedProperty<JsonObjectBacked, JsonElement, T>(key, serializer)
 
 inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
-    ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
+    ReadOnlyProperty { thisRef, _ -> thisRef.decode(serializer, thisRef.rawObject) }

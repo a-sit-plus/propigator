@@ -16,7 +16,7 @@ import net.mamoe.yamlkt.YamlPrimitive
 private class PersonYamlObject(
     raw: YamlMap,
     yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedTestPerson {
+) : YamlObjectBacked(raw, yaml), ObjectBackedTestPerson {
     override val id: String by yamlProperty()
     override val name: String by yamlProperty()
     override val renamed: Boolean by yamlProperty("some_yaml_key")
