@@ -6,6 +6,7 @@ package at.asitplus.propigator.json
 import at.asitplus.propigator.common.ObjectBacked
 import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -25,6 +26,26 @@ open class JsonObjectBacked(
     override fun getElement(key: String): JsonElement? = rawObject[key]
 }
 
+@PublishedApi
+internal fun <T> createDefaultJsonProperty(
+    key: String?,
+    serializer: KSerializer<T>,
+    defaultValue: T,
+): ReadOnlyProperty<JsonObjectBacked, T> =
+    ReadOnlyProperty { thisRef, property ->
+        val actualKey = key ?: property.name
+        val element = thisRef.getElement(actualKey)
+            ?: return@ReadOnlyProperty defaultValue
+        if (thisRef.isNull(element)) return@ReadOnlyProperty readNull(serializer, actualKey)
+        thisRef.decode(serializer, element)
+    }
+
+@Suppress("UNCHECKED_CAST")
+private fun <T> readNull(serializer: KSerializer<T>, actualKey: String): T {
+    if (serializer.descriptor.isNullable) return null as T
+    throw SerializationException("Missing required backing property: $actualKey")
+}
+
 /**
  * Optional fields are backed as nullable type.
  * Example
@@ -38,6 +59,19 @@ inline fun <reified T> jsonProperty(
     serializer: KSerializer<T> = serializer(),
 ): ReadOnlyProperty<JsonObjectBacked, T> =
     backedProperty<JsonObjectBacked, JsonElement, T>(key, serializer)
+
+/**
+ * Reads [defaultValue] when the backing object does not contain the property key.
+ *
+ * Serialization still emits the raw backing object unchanged. If defaults should be encoded,
+ * construct or receive the backing object with those default fields already present.
+ */
+inline fun <reified T> jsonProperty(
+    key: String? = null,
+    defaultValue: T,
+    serializer: KSerializer<T> = serializer(),
+): ReadOnlyProperty<JsonObjectBacked, T> =
+    createDefaultJsonProperty(key, serializer, defaultValue)
 
 inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.decode(serializer, thisRef.rawObject) }
