@@ -15,7 +15,7 @@ import kotlin.properties.ReadOnlyProperty
 
 open class YamlObjectBacked(
     val rawObject: YamlMap,
-    private val yaml: Yaml = Yaml.Default,
+    internal val yaml: Yaml = Yaml.Default,
 ) : ObjectBacked<YamlElement> {
     override fun <T> decode(serializer: KSerializer<T>, element: YamlElement): T =
         yaml.decodeFromString(serializer, element.toString())

@@ -15,7 +15,7 @@ import kotlin.properties.ReadOnlyProperty
 
 open class JsonObjectBacked(
     val rawObject: JsonObject,
-    private val json: Json = Json.Default,
+    internal val json: Json = Json.Default,
 ) : ObjectBacked<JsonElement> {
     override fun <T> decode(serializer: KSerializer<T>, element: JsonElement): T =
         json.decodeFromJsonElement(serializer, element)

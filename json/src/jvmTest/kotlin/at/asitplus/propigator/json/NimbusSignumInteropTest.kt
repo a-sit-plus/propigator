@@ -26,7 +26,10 @@ private class NimbusJwtClaims(
 ) : JsonObjectBacked(raw, json) {
     val jsonWebToken: JsonWebToken by jsonSlice()
 
-    object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializer(::NimbusJwtClaims)
+    object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializer(
+        create = ::NimbusJwtClaims,
+        json = joseCompliantSerializer,
+    )
 }
 
 internal val NimbusSignumInteropTest by matrixSuite {

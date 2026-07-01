@@ -9,6 +9,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import net.mamoe.yamlkt.Yaml
+import net.mamoe.yamlkt.YamlBuilder
 import net.mamoe.yamlkt.YamlMap
 import net.mamoe.yamlkt.YamlPrimitive
 
@@ -71,6 +72,47 @@ internal val YamlObjectBackedTest by matrixSuite {
 
             obj.readOnlyName shouldBe "Ada"
             obj.nickname shouldBe "countess"
+        }
+
+        "allow serialization when the object carries an equivalent Yaml configuration" {
+            val obj = PersonYamlObject(
+                YamlMap(
+                    mapOf(
+                        YamlPrimitive("id") to YamlPrimitive("p-1"),
+                        YamlPrimitive("name") to YamlPrimitive("Ada"),
+                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
+                        YamlPrimitive("foo") to YamlMap(
+                            mapOf(
+                                YamlPrimitive("bar") to YamlPrimitive("2"),
+                                YamlPrimitive("baz") to YamlPrimitive("eyz"),
+                            ),
+                        ),
+                    ),
+                ),
+                Yaml { },
+            )
+
+            val encoded = Yaml.encodeToString(PersonYamlObject.serializer(), obj)
+            val reparsed = Yaml.decodeFromString(PersonYamlObject.serializer(), encoded)
+
+            reparsed.id shouldBe "p-1"
+        }
+
+        "reject serialization when the object carries a different Yaml configuration" {
+            val obj = PersonYamlObject(
+                YamlMap(
+                    mapOf(
+                        YamlPrimitive("id") to YamlPrimitive("p-1"),
+                        YamlPrimitive("name") to YamlPrimitive("Ada"),
+                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
+                    ),
+                ),
+                Yaml { stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION },
+            )
+
+            shouldThrow<IllegalArgumentException> {
+                Yaml.encodeToString(PersonYamlObject.serializer(), obj)
+            }
         }
 
         "resolve slice from the backing object" {

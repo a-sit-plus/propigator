@@ -109,7 +109,7 @@ class PersonJsonObject(
 Use it through `kotlinx.serialization`:
 
 ```kotlin
-val json = Json { prettyPrint = true }
+val json = Json.Default
 
 val person = json.decodeFromString(
     PersonJsonObject.serializer(),
@@ -352,6 +352,28 @@ class PersonJsonObject(...) : JsonObjectBacked(...) {
 ```
 
 The serializer deserializes into a wrapper around the raw object and serializes that same raw object again. Delegated properties are not discovered by the Kotlin serialization compiler plugin as constructor properties, and they are not used to rebuild the serialized output. They are semantic accessors over the backing object.
+
+Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Delegated properties and slices use that stored format, so non-default settings and custom serializers must be chosen when the wrapper is constructed. The object-backed serializers capture `Json.Default` or `Yaml.Default` unless you pass another format:
+
+```kotlin
+private val personJson = Json { ignoreUnknownKeys = true }
+
+object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
+    create = ::PersonJsonObject,
+    json = personJson,
+)
+```
+
+```kotlin
+private val serviceYaml = Yaml.Default
+
+object Serializer : KSerializer<ServiceYamlObject> by YamlObjectBackedSerializer(
+    yaml = serviceYaml,
+    create = ::ServiceYamlObject,
+)
+```
+
+Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
 
 ## Choosing Data Classes vs Propigator
 
