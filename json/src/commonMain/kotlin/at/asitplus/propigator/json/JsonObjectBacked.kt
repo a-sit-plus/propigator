@@ -18,6 +18,13 @@ open class JsonObjectBacked(
     val rawObject: JsonObject,
     internal val json: Json = Json.Default,
 ) : ObjectBacked<JsonElement> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is JsonObjectBacked) return false
+        return rawObject == other.rawObject
+    }
+    override fun hashCode(): Int = rawObject.hashCode()
+    override fun toString(): String = rawObject.toString()
+
     override fun <T> decode(serializer: KSerializer<T>, element: JsonElement): T =
         json.decodeFromJsonElement(serializer, element)
 
