@@ -49,14 +49,9 @@ open class YamlObjectBacked(
 inline fun <reified T> yamlProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
+    nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL
 ): ReadWriteProperty<YamlObjectBacked, T> =
-    backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer)
+    backedProperty<YamlObjectBacked, String, YamlElement, T>(key, serializer, nullWriteMode)
 
 inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<YamlObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
-
-inline fun <reified T> nullableYamlProperty(
-    key: String? = null,
-    nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
-): ReadWriteProperty<YamlObjectBacked, T?> =
-    nullableBackedProperty<YamlObjectBacked, String, YamlElement, T>(key, nullWriteMode)

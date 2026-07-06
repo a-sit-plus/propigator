@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 300
     steps:
       - name: Common Setup
-        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v3
         with:
           override-cache: 'true'
           setup-xcode: 'true'
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Common Setup
-        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v3
         with:
           override-cache: 'false'
       - name: Build Dokka HTML

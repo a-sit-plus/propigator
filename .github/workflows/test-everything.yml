@@ -21,9 +21,9 @@ on:
 
 jobs:
   test-everything:
-    uses: a-sit-plus/internal-workflows/.github/workflows/test-everything.yml@xcode-26
+    uses: a-sit-plus/internal-workflows/.github/workflows/test-everything.yml@v3
     with:
-      override-cache: ${{ github.ref_name == 'main' }}
+      override-cache: ${{ github.ref_name == 'main'|| github.ref_name == 'development' }}
       matrix-file-name: ".github/config/test-strategy-matrix.json"
       kotlin-version: ${{ inputs.kotlin-version }}
       testballoon-version: ${{ inputs.testballoon-version }}

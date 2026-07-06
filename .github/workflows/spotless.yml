@@ -25,8 +25,8 @@ jobs:
     timeout-minutes: 300
     steps:
       - name: Common Setup
-        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v3
         with:
-          override-cache: ${{ github.ref_name == 'main' }}
+          override-cache: ${{ github.ref_name == 'main' || github.ref_name == 'development'}}
       - name: check
         run: ./gradlew spotlessCheck

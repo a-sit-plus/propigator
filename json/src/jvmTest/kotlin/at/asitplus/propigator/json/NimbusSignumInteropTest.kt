@@ -2,15 +2,13 @@ package at.asitplus.propigator.json
 
 import at.asitplus.signum.indispensable.josef.JsonWebToken
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
+import at.asitplus.testballoon.matrix.matrixSuite
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -31,7 +29,7 @@ private class NimbusJwtClaims(
     object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializer(::NimbusJwtClaims)
 }
 
-internal val NimbusSignumInteropTest by testSuite {
+internal val NimbusSignumInteropTest by matrixSuite {
     "Nimbus-generated JWT claims" - {
         "deserialize through Signum JsonWebToken while preserving custom claims" {
             val issuer = "https://issuer.example/${UUID.randomUUID()}"

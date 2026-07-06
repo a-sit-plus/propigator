@@ -83,7 +83,8 @@ dependencies {
 
 ## JSON Quick Start
 
-Define a nominal wrapper class around `JsonObjectBacked`. Add required properties with `jsonProperty()` and nullable properties with `nullableJsonProperty()`.
+Define a nominal wrapper class around `JsonObjectBacked`. Add typed properties with `jsonProperty()`.
+The declared Kotlin type controls whether the backing field is required or nullable.
 
 ```kotlin
 @Serializable(with = PersonJsonObject.Serializer::class)
@@ -94,7 +95,7 @@ class PersonJsonObject(
     var id: String by jsonProperty()
     var name: String by jsonProperty()
     var active: Boolean by jsonProperty("is_active")
-    var nickname: String? by nullableJsonProperty("nick", NullWriteMode.REMOVE_KEY)
+    var nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
 
     override fun validate() {
         id
@@ -142,7 +143,7 @@ class ServiceYamlObject(
 ) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedValidated {
     var id: String by yamlProperty()
     var endpoint: String by yamlProperty()
-    var description: String? by nullableYamlProperty()
+    var description: String? by yamlProperty()
 
     override fun validate() {
         id
@@ -174,34 +175,31 @@ val encoded = yaml.encodeToString(ServiceYamlObject.serializer(), service)
 
 ## Delegated Properties
 
-Required properties use `jsonProperty()` or `yamlProperty()`.
+Required and nullable properties both use `jsonProperty()` or `yamlProperty()`.
+The property type, together with the supplied serializer, defines the nullability contract.
 
 ```kotlin
 var id: String by jsonProperty()
 var displayName: String by jsonProperty("display_name")
+var nickname: String? by jsonProperty("nick")
 ```
 
 If no key is supplied, the Kotlin property name is used as the object key. If a key is supplied, that key is used instead.
 
-Reading a missing required property throws `SerializationException`:
+Reading a missing or explicit-null required property throws `SerializationException`:
 
 ```kotlin
-val id = person.id // throws if "id" is absent
+val id = person.id // throws if "id" is absent or null
 ```
 
-Nullable properties use `nullableJsonProperty()` or `nullableYamlProperty()`.
-
-```kotlin
-var nickname: String? by nullableJsonProperty("nick")
-```
-
-Missing keys and explicit format-native null values both read as `null`.
+For nullable properties, missing keys and explicit format-native null values both read as `null`.
+The serializer must also be nullable; declaring the Kotlin property as `String?` gives the delegate a nullable serializer.
 
 Read-only views are also useful:
 
 ```kotlin
 val PersonJsonObject.publicName: String by jsonProperty("name")
-val PersonJsonObject.optionalNick: String? by nullableJsonProperty("nick")
+val PersonJsonObject.optionalNick: String? by jsonProperty("nick")
 ```
 
 ## Whole-Object Slices
@@ -226,7 +224,7 @@ class ClaimsJsonObject(
     json: Json = Json.Default,
 ) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
     val claims: PublicClaims by jsonSlice()
-    var nonce: String? by nullableJsonProperty()
+    var nonce: String? by jsonProperty()
 
     override fun validate() {
         claims
@@ -252,7 +250,7 @@ Propigator supports per-property null write behavior.
 The default is `NullWriteMode.STORE_NULL`: assigning `null` stores a format-native null value.
 
 ```kotlin
-var middleName: String? by nullableJsonProperty("middle_name")
+var middleName: String? by jsonProperty("middle_name")
 
 person.middleName = null
 // JSON: "middle_name": null
@@ -261,13 +259,14 @@ person.middleName = null
 Use `NullWriteMode.REMOVE_KEY` when `null` should mean absence:
 
 ```kotlin
-var nickname: String? by nullableJsonProperty("nick", NullWriteMode.REMOVE_KEY)
+var nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
 
 person.nickname = null
 // JSON: "nick" is removed
 ```
 
 This is intentionally per property. Some formats or schemas distinguish explicit null from an absent key; others do not. Propigator lets the wrapper encode that decision where the semantic meaning is known.
+`NullWriteMode` only applies to nullable delegated properties. A non-null property remains required and cannot be assigned `null`.
 
 ## Parse, Not Validate
 
@@ -305,9 +304,9 @@ class JwsSigned(
     object Serializer : KSerializer<JwsSigned> by JsonObjectBackedSerializer(::JwsSigned)
 }
 
-var JwsSigned.kid: String? by nullableJsonProperty("kid")
-var JwsSigned.trustDomain: String? by nullableJsonProperty("trust_domain")
-var JwsSigned.policyVersion: Int? by nullableJsonProperty("policy_version")
+var JwsSigned.kid: String? by jsonProperty("kid")
+var JwsSigned.trustDomain: String? by jsonProperty("trust_domain")
+var JwsSigned.policyVersion: Int? by jsonProperty("policy_version")
 ```
 
 An integrator can read the fields it needs:
@@ -347,7 +346,7 @@ Use this sparingly:
 You can add semantic fields outside the nominal wrapper class.
 
 ```kotlin
-var PersonJsonObject.locale: String? by nullableJsonProperty("locale")
+var PersonJsonObject.locale: String? by jsonProperty("locale")
 
 val PersonJsonObject.displayLabel: String
     get() = locale?.let { "$name ($it)" } ?: name

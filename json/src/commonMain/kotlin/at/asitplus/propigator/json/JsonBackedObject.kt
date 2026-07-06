@@ -3,7 +3,10 @@
 
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.*
+import at.asitplus.propigator.common.BackingCodec
+import at.asitplus.propigator.common.NullWriteMode
+import at.asitplus.propigator.common.ObjectBacked
+import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -45,17 +48,20 @@ open class JsonObjectBacked(
     }
 }
 
+/**
+ * Optional fields are backed as nullable type.
+ * Example
+ * ```val foo: String? by jsonProperty("foo")```
+ *
+ * Required fields are backed as strict types
+ * ```val bar: Bar by jsonProperty("bar_obj", CustomBarSerializer)```
+ */
 inline fun <reified T> jsonProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
+    nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL
 ): ReadWriteProperty<JsonObjectBacked, T> =
-    backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer)
+    backedProperty<JsonObjectBacked, String, JsonElement, T>(key, serializer, nullWriteMode)
 
 inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.codec.decode(serializer, thisRef.rawObject) }
-
-inline fun <reified T> nullableJsonProperty(
-    key: String? = null,
-    nullWriteMode: NullWriteMode = NullWriteMode.STORE_NULL,
-): ReadWriteProperty<JsonObjectBacked, T?> =
-    nullableBackedProperty<JsonObjectBacked, String, JsonElement, T>(key, nullWriteMode)

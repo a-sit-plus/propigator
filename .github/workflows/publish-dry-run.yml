@@ -25,7 +25,7 @@ jobs:
       TESTBALLOON_VERSION_OVERRIDE: ${{ inputs.testballoon-version }}
     steps:
       - name: Common Setup
-        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v2
+        uses: a-sit-plus/internal-workflows/.github/actions/common-setup@v3
         with:
           override-cache: 'false'
           setup-xcode: 'true'

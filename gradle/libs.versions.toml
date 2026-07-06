@@ -1,8 +1,8 @@
 [versions]
 kotlin="2.3.20"
-testballoon = "0.8.4-K2.3.20"
+testballoon = "1.0.0-K2.3.20"
 yamlkt = "0.13.0"
-asp="20260428"
+asp="20260610"
 agp = "8.12.3"
 sbombastic = "0.0.3"
 spotless = "8.2.1"
