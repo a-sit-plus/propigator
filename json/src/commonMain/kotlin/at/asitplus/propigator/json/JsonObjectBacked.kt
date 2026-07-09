@@ -36,8 +36,8 @@ open class JsonObjectBacked(
 @PublishedApi
 internal fun <T> createDefaultJsonProperty(
     key: String?,
-    serializer: KSerializer<T>,
     defaultValue: T,
+    serializer: KSerializer<T>,
 ): ReadOnlyProperty<JsonObjectBacked, T> =
     ReadOnlyProperty { thisRef, property ->
         val actualKey = key ?: property.name
@@ -51,6 +51,19 @@ internal fun <T> createDefaultJsonProperty(
 private fun <T> readNull(serializer: KSerializer<T>, actualKey: String): T {
     if (serializer.descriptor.isNullable) return null as T
     throw SerializationException("Missing required backing property: $actualKey")
+}
+
+
+internal fun JsonObject?.strictUnion(other: JsonObject?): JsonObject {
+    if (this == null) return other ?: JsonObject(emptyMap())
+    if (other == null) return this
+
+    val duplicates = this.keys intersect other.keys
+    require(duplicates.isEmpty()) {
+        "Duplicate keys: ${duplicates.joinToString()}"
+    }
+
+    return JsonObject(this + other)
 }
 
 /**
@@ -78,7 +91,7 @@ inline fun <reified T> jsonProperty(
     defaultValue: T,
     serializer: KSerializer<T> = serializer(),
 ): ReadOnlyProperty<JsonObjectBacked, T> =
-    createDefaultJsonProperty(key, serializer, defaultValue)
+    createDefaultJsonProperty(key, defaultValue, serializer)
 
 inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.decode(serializer, thisRef.rawObject) }
