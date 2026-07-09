@@ -1,6 +1,5 @@
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.NullWriteMode
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -15,22 +14,37 @@ import kotlinx.serialization.json.*
 private class PersonJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedTestPerson {
-    override var id: String by jsonProperty()
-    override var name: String by jsonProperty()
-    override var renamed: Boolean by jsonProperty("some_json_key")
+) : JsonObjectBacked(raw, json), ObjectBackedTestPerson {
+    override val id: String by jsonProperty()
+    override val name: String by jsonProperty()
+    override val renamed: Boolean by jsonProperty("some_json_key")
     val readOnlyName: String by jsonProperty("name")
     override val foo: ObjectBackedTestPerson.Foo by jsonProperty("foo")
 
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
 
-private var PersonJsonObject.nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
-private var PersonJsonObject.middleName: String? by jsonProperty(
-    "middle",
-    nullWriteMode = NullWriteMode.STORE_NULL
+private val PersonJsonObject.nickname: String? by jsonProperty("nick")
+
+@Serializable
+private data class NestedName(
+    val name: String,
 )
-private val PersonJsonObject.readOnlyNickname: String? by jsonProperty("nick")
+
+@Serializable(with = FormatJsonObject.Serializer::class)
+private class FormatJsonObject(
+    raw: JsonObject,
+    json: Json = Json.Default,
+) : JsonObjectBacked(raw, json) {
+    val nested: NestedName by jsonProperty()
+
+    object Serializer : KSerializer<FormatJsonObject> by JsonObjectBackedSerializer(::FormatJsonObject)
+}
+
+private val ignoreUnknownJson = Json { ignoreUnknownKeys = true }
+
+private object IgnoreUnknownFormatJsonObjectSerializer :
+    KSerializer<FormatJsonObject> by JsonObjectBackedSerializer(::FormatJsonObject, ignoreUnknownJson)
 
 internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {
@@ -55,13 +69,9 @@ internal val JsonObjectBackedTest by matrixSuite {
             decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
-            decoded.name = "Grace"
-            decoded.nickname = "amazing"
-
             val encoded = json.encodeToString(PersonJsonObject.serializer(), decoded)
             val reparsed = json.decodeFromString(PersonJsonObject.serializer(), encoded)
-            reparsed.name shouldBe "Grace"
-            reparsed.nickname shouldBe "amazing"
+            reparsed.name shouldBe ObjectBackedTestData.name
             reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
@@ -75,35 +85,50 @@ internal val JsonObjectBackedTest by matrixSuite {
             })
 
             obj.readOnlyName shouldBe "Ada"
-            obj.readOnlyNickname shouldBe "countess"
+            obj.nickname shouldBe "countess"
         }
 
-        "remove nullable keys when configured with REMOVE_KEY mode" {
+        "decode delegated properties with the serializer construction Json by default" {
+            val payload = """{"nested":{"name":"Ada","unknown":true}}"""
+            val decodedWithDefaultFormat = ignoreUnknownJson.decodeFromString(
+                FormatJsonObject.serializer(),
+                payload,
+            )
+
+            shouldThrow<SerializationException> {
+                decodedWithDefaultFormat.nested
+            }
+
+            val decodedWithCustomFormat = Json.Default.decodeFromString(
+                IgnoreUnknownFormatJsonObjectSerializer,
+                payload,
+            )
+
+            decodedWithCustomFormat.nested shouldBe NestedName("Ada")
+        }
+
+        "allow serialization with an equivalent Json configuration" {
             val obj = PersonJsonObject(buildJsonObject {
                 put("id", "p-1")
                 put("name", "Ada")
                 put("some_json_key", true)
             })
-            obj.nickname = "x"
-            obj.nickname shouldBe "x"
-            obj.nickname = null
-            obj.rawObject["nick"] shouldBe null
+
+            val encoded = Json { }.encodeToString(PersonJsonObject.serializer(), obj)
+
+            Json.parseToJsonElement(encoded).jsonObject["id"]!!.jsonPrimitive.content shouldBe "p-1"
         }
 
-        "store explicit null for one property while removing another on the same object" {
+        "reject serialization with a mismatching Json configuration" {
             val obj = PersonJsonObject(buildJsonObject {
                 put("id", "p-1")
                 put("name", "Ada")
                 put("some_json_key", true)
-                put("middle", "Byron")
-                put("nick", "countess")
             })
 
-            obj.middleName = null
-            obj.nickname = null
-
-            obj.rawObject["middle"] shouldBe JsonNull
-            obj.rawObject["nick"] shouldBe null
+            shouldThrow<IllegalArgumentException> {
+                Json { prettyPrint = true }.encodeToString(PersonJsonObject.serializer(), obj)
+            }
         }
 
         "reject payloads missing mandatory delegated properties" {

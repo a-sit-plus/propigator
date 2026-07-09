@@ -58,8 +58,8 @@ internal val keyAttestationJwtClaims = """
 @Serializable(with = KeyAttestation.Serializer::class)
 internal data class KeyAttestation(
     private val raw: JsonObject,
-    private val json: Json = joseCompliantSerializer,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
+    private val jsonFormat: Json = joseCompliantSerializer,
+) : JsonObjectBacked(raw, jsonFormat), ObjectBackedValidated {
     /**
      * We can serialize into data classes
      */
@@ -82,7 +82,10 @@ internal data class KeyAttestation(
         issuedAt
     }
 
-    object Serializer : KSerializer<KeyAttestation> by JsonObjectBackedSerializer(::KeyAttestation)
+    object Serializer : KSerializer<KeyAttestation> by JsonObjectBackedSerializer(
+        create = ::KeyAttestation,
+        json = joseCompliantSerializer,
+    )
 }
 
 @Serializable

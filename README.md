@@ -20,6 +20,8 @@
 Propigator is a Kotlin Multiplatform library for building typed views over raw object-shaped data while keeping the original payload forward-compatible.
 Use it when you want Kotlin properties for the fields your code understands, but you must not destroy fields you do not understand yet. This is useful for protocol objects, configuration files, extension points, signed or externally-owned payloads, and versioned data formats where newer producers may send fields older consumers should preserve.
 
+Delegated properties are read-only views over the backing object. Propigator can deserialize and serialize the preserved raw object, but it does not update that object through property setters.
+
 Propigator currently provides object-backed wrappers for:
 
 - `common`: format-agnostic delegates and validation hooks.
@@ -33,12 +35,11 @@ Normal `@Serializable` data classes are great when your schema is the whole trut
 Propigator uses a different model:
 
 1. Keep the raw object map.
-2. Add delegated Kotlin properties for fields you care about.
+2. Add read-only delegated Kotlin properties for fields you care about.
 3. Decode each property on demand with `kotlinx.serialization`.
-4. Write changes back into the raw object.
-5. Serialize the raw object again, including unknown fields.
+4. Serialize the preserved raw object again, including unknown fields.
 
-That means a downstream integrator can parse, inspect, edit, and re-emit objects without becoming the schema authority for every field in the document.
+That means a downstream integrator can parse, inspect, and re-emit objects without becoming the schema authority for every field in the document.
 
 ## Forward Compatibility
 
@@ -56,12 +57,11 @@ If an incoming JSON object contains:
 }
 ```
 
-and your wrapper only knows `id` and `name`, `futureField` stays in the backing object and is emitted again when you serialize.
+and your wrapper only knows `id` and `name`, `futureField` stays in the backing object and is emitted again when you serialize the wrapper. Delegated properties do not rebuild, overwrite, or remove backing fields.
 
 This makes Propigator a good fit for downstream tools that should be conservative:
 
 - Read a document from an upstream system.
-- Change only the fields your tool owns.
 - Preserve extension fields, vendor fields, and future fields.
 - Avoid forcing a full validation model onto the entire object.
 
@@ -91,11 +91,11 @@ The declared Kotlin type controls whether the backing field is required or nulla
 class PersonJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
-    var id: String by jsonProperty()
-    var name: String by jsonProperty()
-    var active: Boolean by jsonProperty("is_active")
-    var nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
+) : JsonObjectBacked(raw, json), ObjectBackedValidated {
+    val id: String by jsonProperty()
+    val name: String by jsonProperty()
+    val active: Boolean by jsonProperty("is_active")
+    val nickname: String? by jsonProperty("nick")
 
     override fun validate() {
         id
@@ -109,7 +109,7 @@ class PersonJsonObject(
 Use it through `kotlinx.serialization`:
 
 ```kotlin
-val json = Json { prettyPrint = true }
+val json = Json.Default
 
 val person = json.decodeFromString(
     PersonJsonObject.serializer(),
@@ -123,13 +123,10 @@ val person = json.decodeFromString(
     """.trimIndent()
 )
 
-person.name = "Grace Hopper"
-person.nickname = "Amazing Grace"
-
 val encoded = json.encodeToString(PersonJsonObject.serializer(), person)
 ```
 
-The encoded JSON contains the changed known fields and still contains `futureField`.
+The encoded JSON still contains `futureField`.
 
 ## YAML Quick Start
 
@@ -140,10 +137,10 @@ YAML works the same way, using `YamlObjectBacked` and YAML-specific delegates.
 class ServiceYamlObject(
     raw: YamlMap,
     yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, YamlBackingCodec(yaml)), ObjectBackedValidated {
-    var id: String by yamlProperty()
-    var endpoint: String by yamlProperty()
-    var description: String? by yamlProperty()
+) : YamlObjectBacked(raw, yaml), ObjectBackedValidated {
+    val id: String by yamlProperty()
+    val endpoint: String by yamlProperty()
+    val description: String? by yamlProperty()
 
     override fun validate() {
         id
@@ -166,8 +163,6 @@ val service = yaml.decodeFromString(
     """.trimIndent()
 )
 
-service.endpoint = "https://api.example.test/payments"
-
 val encoded = yaml.encodeToString(ServiceYamlObject.serializer(), service)
 ```
 
@@ -178,10 +173,12 @@ val encoded = yaml.encodeToString(ServiceYamlObject.serializer(), service)
 Required and nullable properties both use `jsonProperty()` or `yamlProperty()`.
 The property type, together with the supplied serializer, defines the nullability contract.
 
+All delegated properties are read-only. They decode values from the backing object when read, and they do not write values back.
+
 ```kotlin
-var id: String by jsonProperty()
-var displayName: String by jsonProperty("display_name")
-var nickname: String? by jsonProperty("nick")
+val id: String by jsonProperty()
+val displayName: String by jsonProperty("display_name")
+val nickname: String? by jsonProperty("nick")
 ```
 
 If no key is supplied, the Kotlin property name is used as the object key. If a key is supplied, that key is used instead.
@@ -195,7 +192,7 @@ val id = person.id // throws if "id" is absent or null
 For nullable properties, missing keys and explicit format-native null values both read as `null`.
 The serializer must also be nullable; declaring the Kotlin property as `String?` gives the delegate a nullable serializer.
 
-Read-only views are also useful:
+Extension properties can expose additional read-only views:
 
 ```kotlin
 val PersonJsonObject.publicName: String by jsonProperty("name")
@@ -207,8 +204,8 @@ val PersonJsonObject.optionalNick: String? by jsonProperty("nick")
 Use `jsonSlice()` or `yamlSlice()` when you want to decode the entire backing object as an existing
 `@Serializable` type instead of defining one delegated property per field.
 
-A slice is a read-only view over `rawObject`. It uses the wrapper's configured `JsonBackingCodec` or
-`YamlBackingCodec`, so the same format settings and serializers apply.
+A slice is a read-only view over `rawObject`. It uses the wrapper's configured `Json` or `Yaml`,
+so the same format settings and serializers apply.
 
 ```kotlin
 @Serializable
@@ -222,9 +219,9 @@ data class PublicClaims(
 class ClaimsJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)), ObjectBackedValidated {
+) : JsonObjectBacked(raw, json), ObjectBackedValidated {
     val claims: PublicClaims by jsonSlice()
-    var nonce: String? by jsonProperty()
+    val nonce: String? by jsonProperty()
 
     override fun validate() {
         claims
@@ -234,39 +231,14 @@ class ClaimsJsonObject(
 }
 ```
 
-`claims` is decoded from the whole JSON object, while `nonce` remains an editable property backed by
-the same raw object. Unknown fields are still preserved when the wrapper is serialized again.
+`claims` is decoded from the whole JSON object, while `nonce` is decoded from the same raw object.
+Unknown fields are still preserved when the wrapper is serialized again.
 
 YAML-backed objects provide the same pattern with `yamlSlice()`:
 
 ```kotlin
 val foo: Foo by yamlSlice()
 ```
-
-## Null Write Behavior
-
-Propigator supports per-property null write behavior.
-
-The default is `NullWriteMode.STORE_NULL`: assigning `null` stores a format-native null value.
-
-```kotlin
-var middleName: String? by jsonProperty("middle_name")
-
-person.middleName = null
-// JSON: "middle_name": null
-```
-
-Use `NullWriteMode.REMOVE_KEY` when `null` should mean absence:
-
-```kotlin
-var nickname: String? by jsonProperty("nick", nullWriteMode = NullWriteMode.REMOVE_KEY)
-
-person.nickname = null
-// JSON: "nick" is removed
-```
-
-This is intentionally per property. Some formats or schemas distinguish explicit null from an absent key; others do not. Propigator lets the wrapper encode that decision where the semantic meaning is known.
-`NullWriteMode` only applies to nullable delegated properties. A non-null property remains required and cannot be assigned `null`.
 
 ## Parse, Not Validate
 
@@ -296,7 +268,7 @@ For example, a `JwsSigned` wrapper may need typed access to signature-critical f
 class JwsSigned(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, JsonBackingCodec(json)) {
+) : JsonObjectBacked(raw, json) {
     val protectedHeader: String by jsonProperty("protected")
     val payload: String by jsonProperty()
     val signature: String by jsonProperty()
@@ -304,9 +276,9 @@ class JwsSigned(
     object Serializer : KSerializer<JwsSigned> by JsonObjectBackedSerializer(::JwsSigned)
 }
 
-var JwsSigned.kid: String? by jsonProperty("kid")
-var JwsSigned.trustDomain: String? by jsonProperty("trust_domain")
-var JwsSigned.policyVersion: Int? by jsonProperty("policy_version")
+val JwsSigned.kid: String? by jsonProperty("kid")
+val JwsSigned.trustDomain: String? by jsonProperty("trust_domain")
+val JwsSigned.policyVersion: Int? by jsonProperty("policy_version")
 ```
 
 An integrator can read the fields it needs:
@@ -315,14 +287,14 @@ An integrator can read the fields it needs:
 val jws = json.decodeFromString(JwsSigned.serializer(), incoming)
 
 val signature = jws.signature
-jws.trustDomain = "example.eu"
+val trustDomain = jws.trustDomain
 
 val forwarded = json.encodeToString(JwsSigned.serializer(), jws)
 ```
 
 Fields not modelled by `JwsSigned`, including future JOSE extensions and domain-specific fields, stay in `rawObject` and are emitted again.
 
-This is parse-not-validate by design. A component that routes or annotates a JOSE object may need `payload` and `signature`, but it should not reject an object because it does not understand a domain-specific property. Full JOSE validation belongs to the layer that has the keys, algorithms, policy, critical-header handling, and domain rules. Propigator keeps the object editable and forward-compatible until that layer needs to make a decision.
+This is parse-not-validate by design. A component that routes or inspects a JOSE object may need `payload` and `signature`, but it should not reject an object because it does not understand a domain-specific property. Full JOSE validation belongs to the layer that has the keys, algorithms, policy, critical-header handling, and domain rules. Propigator keeps the object forward-compatible until that layer needs to make a decision.
 
 When you do need parse-time checks for your own mandatory fields, implement `ObjectBackedValidated` and touch those properties in `validate()`:
 
@@ -346,13 +318,13 @@ Use this sparingly:
 You can add semantic fields outside the nominal wrapper class.
 
 ```kotlin
-var PersonJsonObject.locale: String? by jsonProperty("locale")
+val PersonJsonObject.locale: String? by jsonProperty("locale")
 
 val PersonJsonObject.displayLabel: String
     get() = locale?.let { "$name ($it)" } ?: name
 ```
 
-This is useful when several downstream integrations share the same raw object but each integration owns different extension fields.
+This is useful when several downstream integrations share the same raw object but each integration reads different extension fields.
 
 ## Raw Object Access
 
@@ -366,7 +338,7 @@ For JSON, `rawObject` is a `JsonObject`.
 
 For YAML, `rawObject` is a `YamlMap`.
 
-The wrapper keeps an internal mutable backing map and exposes snapshots through `rawObject`.
+Propigator exposes the original raw object through `rawObject`. If you need to create a modified payload, build a new format object with the JSON or YAML APIs and wrap that object.
 
 ## Serializer Pattern
 
@@ -379,7 +351,29 @@ class PersonJsonObject(...) : JsonObjectBacked(...) {
 }
 ```
 
-The serializer reads and writes the raw object. Delegated properties are not discovered by the Kotlin serialization compiler plugin as constructor properties. They are semantic accessors over the backing object.
+The serializer deserializes into a wrapper around the raw object and serializes that same raw object again. Delegated properties are not discovered by the Kotlin serialization compiler plugin as constructor properties, and they are not used to rebuild the serialized output. They are semantic accessors over the backing object.
+
+Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Delegated properties and slices use that stored format, so non-default settings and custom serializers must be chosen when the wrapper is constructed. The object-backed serializers capture `Json.Default` or `Yaml.Default` unless you pass another format:
+
+```kotlin
+private val personJson = Json { ignoreUnknownKeys = true }
+
+object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
+    create = ::PersonJsonObject,
+    json = personJson,
+)
+```
+
+```kotlin
+private val serviceYaml = Yaml.Default
+
+object Serializer : KSerializer<ServiceYamlObject> by YamlObjectBackedSerializer(
+    yaml = serviceYaml,
+    create = ::ServiceYamlObject,
+)
+```
+
+Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
 
 ## Choosing Data Classes vs Propigator
 
@@ -387,7 +381,7 @@ Use regular `@Serializable` data classes when:
 
 - Your service owns the full schema.
 - Unknown fields should be ignored or rejected.
-- You want constructor-based validation and immutable values.
+- You want constructor-based validation and generated output from declared properties.
 
 Use Propigator when:
 
@@ -396,12 +390,14 @@ Use Propigator when:
 - The schema is extensible or versioned.
 - You only own a few fields inside a larger object.
 - You need to parse first and validate only the fields your workflow touches.
+- You want a typed read-only view over a format object.
 
 
 
 ## Current Limitations
 
 - Propigator wraps object/map payloads, not arbitrary top-level scalar values.
+- Propigator is a read-only view layer. Delegated properties do not update, add, or remove backing fields.
 - YAML element conversion is intentionally simple: individual values are rendered through YAML and decoded again with `yamlkt`.
 - Delegated properties are runtime accessors. They are not constructor properties and do not appear as separate generated serialization fields.
 - `ObjectBackedValidated` validates only what your `validate()` function reads.

@@ -23,6 +23,23 @@ class YamlObjectBackedSerializer<T : YamlObjectBacked>(
     }
 
     override fun serialize(encoder: Encoder, value: T) {
+        require(yaml.hasSameConfigurationAs(value.yaml)) {
+            "Mismatching Yaml configuration. By default, the object owns the serialization shape."
+        }
         YamlMap.serializer().serialize(encoder, value.rawObject)
     }
+}
+
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+private fun Yaml.hasSameConfigurationAs(other: Yaml): Boolean {
+    val left = configuration
+    val right = other.configuration
+    return left.nonStrictNullability == right.nonStrictNullability &&
+        left.nonStrictNumber == right.nonStrictNumber &&
+        left.encodeDefaultValues == right.encodeDefaultValues &&
+        left.stringSerialization == right.stringSerialization &&
+        left.nullSerialization == right.nullSerialization &&
+        left.mapSerialization == right.mapSerialization &&
+        left.classSerialization == right.classSerialization &&
+        left.listSerialization == right.listSerialization
 }

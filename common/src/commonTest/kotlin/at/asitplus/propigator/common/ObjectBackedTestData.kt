@@ -3,9 +3,9 @@ package at.asitplus.propigator.common
 import kotlinx.serialization.Serializable
 
 internal interface ObjectBackedTestPerson : ObjectBackedValidated {
-    var id: String
-    var name: String
-    var renamed: Boolean
+    val id: String
+    val name: String
+    val renamed: Boolean
     val foo: Foo
 
     override fun validate() {
@@ -23,9 +23,9 @@ internal interface ObjectBackedTestPerson : ObjectBackedValidated {
 
 @Serializable
 internal object ObjectBackedTestData : ObjectBackedTestPerson {
-    override var id: String = "p-1"
-    override var name: String = "Ada"
-    override var renamed: Boolean = true
+    override val id: String = "p-1"
+    override val name: String = "Ada"
+    override val renamed: Boolean = true
     override val foo: ObjectBackedTestPerson.Foo = ObjectBackedTestPerson.Foo(
         bar = 2,
         baz = "eyz",
