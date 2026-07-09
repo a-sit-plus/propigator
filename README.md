@@ -17,57 +17,30 @@
 
 </div>
 
-Propigator is a Kotlin Multiplatform library for building typed views over raw object-shaped data while keeping the original payload forward-compatible.
-Use it when you want Kotlin properties for the fields your code understands, but you must not destroy fields you do not understand yet. This is useful for protocol objects, configuration files, extension points, signed or externally-owned payloads, and versioned data formats where newer producers may send fields older consumers should preserve.
+Propigator is a Kotlin Multiplatform library for typed, read-only views over raw object-shaped data. Use it when your code only understands part of a JSON or YAML object, but must preserve unknown fields when the object is re-emitted.
 
-Delegated properties are read-only views over the backing object. Propigator can deserialize and serialize the preserved raw object, but it does not update that object through property setters.
-
-Propigator currently provides object-backed wrappers for:
+Propigator provides wrappers for:
 
 - `common`: format-agnostic delegates and validation hooks.
 - `json`: `JsonObject` backed objects.
 - `yaml`: [yamlkt](https://github.com/him188/yamlkt) `YamlMap` backed objects.
 
-## What It Does
-
-Normal `@Serializable` data classes are great when your schema is the whole truth. They parse known fields into constructor parameters and usually ignore or reject the rest depending on format configuration.
-
-Propigator uses a different model:
+## Core Model
 
 1. Keep the raw object map.
 2. Add read-only delegated Kotlin properties for fields you care about.
 3. Decode each property on demand with `kotlinx.serialization`.
-4. Serialize the preserved raw object again, including unknown fields.
+4. Serialize the same raw object again.
 
-That means a downstream integrator can parse, inspect, and re-emit objects without becoming the schema authority for every field in the document.
-
-## Forward Compatibility
-
-Propigator preserves unknown fields by design.
-
-If an incoming JSON object contains:
+For example, if an incoming JSON object contains a future field:
 
 ```json
-{
-  "id": "42",
-  "name": "Grace",
-  "futureField": {
-    "addedBy": "newer-service"
-  }
-}
+{ "id": "42", "name": "Grace", "futureField": "preserved" }
 ```
 
-and your wrapper only knows `id` and `name`, `futureField` stays in the backing object and is emitted again when you serialize the wrapper. Delegated properties do not rebuild, overwrite, or remove backing fields.
-
-This makes Propigator a good fit for downstream tools that should be conservative:
-
-- Read a document from an upstream system.
-- Preserve extension fields, vendor fields, and future fields.
-- Avoid forcing a full validation model onto the entire object.
+and your wrapper only exposes `id` and `name`, `futureField` stays in `rawObject` and is serialized again unchanged. Delegated properties never rebuild, overwrite, or remove backing fields.
 
 ## Using it in your Project
-
-Use the module matching the format you need.
 
 ```kotlin
 dependencies {
@@ -77,14 +50,11 @@ dependencies {
 }
 ```
 
-`json` depends on `common` and `kotlinx-serialization-json`.
-
-`yaml` depends on `common` and `yamlkt`.
+Use `json` for `kotlinx-serialization-json` backed objects and `yaml` for yamlkt backed objects.
 
 ## JSON Quick Start
 
-Define a nominal wrapper class around `JsonObjectBacked`. Add typed properties with `jsonProperty()`.
-The declared Kotlin type controls whether the backing field is required or nullable.
+Define a wrapper around `JsonObjectBacked` and add typed properties with `jsonProperty()`.
 
 ```kotlin
 @Serializable(with = PersonJsonObject.Serializer::class)
@@ -105,8 +75,6 @@ class PersonJsonObject(
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
 ```
-
-Use it through `kotlinx.serialization`:
 
 ```kotlin
 val json = Json.Default
@@ -130,7 +98,7 @@ The encoded JSON still contains `futureField`.
 
 ## YAML Quick Start
 
-YAML works the same way, using `YamlObjectBacked` and YAML-specific delegates.
+YAML uses the same pattern with `YamlObjectBacked` and `yamlProperty()`.
 
 ```kotlin
 @Serializable(with = ServiceYamlObject.Serializer::class)
@@ -192,20 +160,18 @@ val id = person.id // throws if "id" is absent or null
 For nullable properties, missing keys and explicit format-native null values both read as `null`.
 The serializer must also be nullable; declaring the Kotlin property as `String?` gives the delegate a nullable serializer.
 
-Extension properties can expose additional read-only views:
+JSON-backed properties can also define a read default for missing keys:
 
 ```kotlin
-val PersonJsonObject.publicName: String by jsonProperty("name")
-val PersonJsonObject.optionalNick: String? by jsonProperty("nick")
+val active: Boolean by jsonProperty(defaultValue = true)
+val displayName: String by jsonProperty("display_name", defaultValue = "Anonymous")
 ```
+
+This mirrors Kotlin serialization's absent-field default semantics for reads. It does not add the field to `rawObject`, and serialization still emits the preserved raw JSON object unchanged. If `Json { encodeDefaults = true }` should affect the serialized payload, construct or receive the backing `JsonObject` with those default fields already present.
 
 ## Whole-Object Slices
 
-Use `jsonSlice()` or `yamlSlice()` when you want to decode the entire backing object as an existing
-`@Serializable` type instead of defining one delegated property per field.
-
-A slice is a read-only view over `rawObject`. It uses the wrapper's configured `Json` or `Yaml`,
-so the same format settings and serializers apply.
+Use `jsonSlice()` or `yamlSlice()` to decode the entire backing object as an existing `@Serializable` type.
 
 ```kotlin
 @Serializable
@@ -231,22 +197,17 @@ class ClaimsJsonObject(
 }
 ```
 
-`claims` is decoded from the whole JSON object, while `nonce` is decoded from the same raw object.
-Unknown fields are still preserved when the wrapper is serialized again.
+`claims` is decoded from the whole JSON object, while `nonce` is decoded from the same raw object. Unknown fields are still preserved.
 
-YAML-backed objects provide the same pattern with `yamlSlice()`:
+YAML-backed objects provide the same pattern:
 
 ```kotlin
 val foo: Foo by yamlSlice()
 ```
 
-## Parse, Not Validate
+## Validation
 
-Propigator is designed for parse-not-validate workflows.
-
-Parsing creates a typed view over the raw object. It does not require you to model every field in the payload. Unknown fields are kept as raw data.
-
-By default, delegated required fields are checked when read:
+Propigator is designed for parse-not-validate workflows: parse the raw object, expose the fields your workflow needs, and keep the rest untouched. Required delegated fields are checked when read:
 
 ```kotlin
 val person = json.decodeFromString(PersonJsonObject.serializer(), payload)
@@ -255,48 +216,7 @@ val person = json.decodeFromString(PersonJsonObject.serializer(), payload)
 println(person.name)
 ```
 
-This is useful for downstream integrators that should accept future payloads, inspect a small subset, and forward the rest unchanged.
-
-## Prime Example: JOSE
-
-JOSE-style objects are a prime Propigator use case. They have a few core fields that many libraries need to understand, but they are also intentionally open-ended: deployments add domain-specific parameters, claims, headers, and policy fields.
-
-For example, a `JwsSigned` wrapper may need typed access to signature-critical fields while preserving every application-specific field:
-
-```kotlin
-@Serializable(with = JwsSigned.Serializer::class)
-class JwsSigned(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json) {
-    val protectedHeader: String by jsonProperty("protected")
-    val payload: String by jsonProperty()
-    val signature: String by jsonProperty()
-
-    object Serializer : KSerializer<JwsSigned> by JsonObjectBackedSerializer(::JwsSigned)
-}
-
-val JwsSigned.kid: String? by jsonProperty("kid")
-val JwsSigned.trustDomain: String? by jsonProperty("trust_domain")
-val JwsSigned.policyVersion: Int? by jsonProperty("policy_version")
-```
-
-An integrator can read the fields it needs:
-
-```kotlin
-val jws = json.decodeFromString(JwsSigned.serializer(), incoming)
-
-val signature = jws.signature
-val trustDomain = jws.trustDomain
-
-val forwarded = json.encodeToString(JwsSigned.serializer(), jws)
-```
-
-Fields not modelled by `JwsSigned`, including future JOSE extensions and domain-specific fields, stay in `rawObject` and are emitted again.
-
-This is parse-not-validate by design. A component that routes or inspects a JOSE object may need `payload` and `signature`, but it should not reject an object because it does not understand a domain-specific property. Full JOSE validation belongs to the layer that has the keys, algorithms, policy, critical-header handling, and domain rules. Propigator keeps the object forward-compatible until that layer needs to make a decision.
-
-When you do need parse-time checks for your own mandatory fields, implement `ObjectBackedValidated` and touch those properties in `validate()`:
+For parse-time checks, implement `ObjectBackedValidated` and touch only the fields your component requires:
 
 ```kotlin
 override fun validate() {
@@ -306,16 +226,11 @@ override fun validate() {
 ```
 
 The format serializer calls `validate()` after decoding if the object implements `ObjectBackedValidated`.
-
-Use this sparingly:
-
-- Validate fields your component truly requires.
-- Do not validate fields you merely want to preserve.
-- Do not reject unknown fields just because this version of your code does not understand them.
+This is useful for open-ended formats such as JOSE, where one layer may need typed access to a few fields while preserving claims, headers, or extensions for a later validation layer.
 
 ## Extension Properties
 
-You can add semantic fields outside the nominal wrapper class.
+You can add semantic fields outside the nominal wrapper class:
 
 ```kotlin
 val PersonJsonObject.locale: String? by jsonProperty("locale")
@@ -324,25 +239,17 @@ val PersonJsonObject.displayLabel: String
     get() = locale?.let { "$name ($it)" } ?: name
 ```
 
-This is useful when several downstream integrations share the same raw object but each integration reads different extension fields.
+## Raw Objects and Serializers
 
-## Raw Object Access
-
-Use `rawObject` when you need to inspect, pass through, or debug the complete backing object.
+Use `rawObject` to inspect, pass through, or debug the complete backing object:
 
 ```kotlin
 val raw: JsonObject = person.rawObject
 ```
 
-For JSON, `rawObject` is a `JsonObject`.
+For JSON, `rawObject` is a `JsonObject`; for YAML, it is a `YamlMap`. To create a modified payload, build a new format object and wrap it.
 
-For YAML, `rawObject` is a `YamlMap`.
-
-Propigator exposes the original raw object through `rawObject`. If you need to create a modified payload, build a new format object with the JSON or YAML APIs and wrap that object.
-
-## Serializer Pattern
-
-Propigator serializers are attached to each nominal wrapper type:
+Attach a serializer to each wrapper type:
 
 ```kotlin
 @Serializable(with = PersonJsonObject.Serializer::class)
@@ -351,9 +258,9 @@ class PersonJsonObject(...) : JsonObjectBacked(...) {
 }
 ```
 
-The serializer deserializes into a wrapper around the raw object and serializes that same raw object again. Delegated properties are not discovered by the Kotlin serialization compiler plugin as constructor properties, and they are not used to rebuild the serialized output. They are semantic accessors over the backing object.
+The serializer wraps the raw object on decode and serializes the same raw object on encode. Delegated properties are semantic accessors, not constructor properties.
 
-Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Delegated properties and slices use that stored format, so non-default settings and custom serializers must be chosen when the wrapper is constructed. The object-backed serializers capture `Json.Default` or `Yaml.Default` unless you pass another format:
+Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Pass a custom format to the object-backed serializer when delegated properties need non-default settings or serializers:
 
 ```kotlin
 private val personJson = Json { ignoreUnknownKeys = true }
@@ -361,15 +268,6 @@ private val personJson = Json { ignoreUnknownKeys = true }
 object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
     create = ::PersonJsonObject,
     json = personJson,
-)
-```
-
-```kotlin
-private val serviceYaml = Yaml.Default
-
-object Serializer : KSerializer<ServiceYamlObject> by YamlObjectBackedSerializer(
-    yaml = serviceYaml,
-    create = ::ServiceYamlObject,
 )
 ```
 
@@ -388,20 +286,14 @@ Use Propigator when:
 - You need to preserve unknown fields.
 - You are building downstream tooling for someone else's schema.
 - The schema is extensible or versioned.
-- You only own a few fields inside a larger object.
-- You need to parse first and validate only the fields your workflow touches.
 - You want a typed read-only view over a format object.
-
-
 
 ## Current Limitations
 
 - Propigator wraps object/map payloads, not arbitrary top-level scalar values.
-- Propigator is a read-only view layer. Delegated properties do not update, add, or remove backing fields.
 - YAML element conversion is intentionally simple: individual values are rendered through YAML and decoded again with `yamlkt`.
 - Delegated properties are runtime accessors. They are not constructor properties and do not appear as separate generated serialization fields.
 - `ObjectBackedValidated` validates only what your `validate()` function reads.
-
 
 ## Contributing
 
