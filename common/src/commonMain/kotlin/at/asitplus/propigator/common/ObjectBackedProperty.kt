@@ -16,15 +16,33 @@ internal fun <O, V, T> createBackedProperty(
     ReadOnlyProperty { thisRef, property ->
         val actualKey = key ?: property.name
         val element = thisRef.getElement(actualKey)
-            ?: return@ReadOnlyProperty readNull(serializer, actualKey)
-        if (thisRef.isNull(element)) return@ReadOnlyProperty readNull(serializer, actualKey)
+            ?: return@ReadOnlyProperty missingValue(actualKey, serializer)
+        if (thisRef.isNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
         thisRef.decode(serializer, element)
     }
 
-@Suppress("UNCHECKED_CAST")
-private fun <T> readNull(serializer: KSerializer<T>, actualKey: String): T {
-    if (serializer.descriptor.isNullable) return null as T
-    throw SerializationException("Missing required backing property: $actualKey")
+@PublishedApi
+internal fun <O, V, T> createDefaultProperty(
+    key: String?,
+    defaultValue: T,
+    serializer: KSerializer<T>,
+): ReadOnlyProperty<O,T> where O : ObjectBacked<V> = ReadOnlyProperty { thisRef, property ->
+    val actualKey = key ?: property.name
+    val element = thisRef.getElement(actualKey)
+        ?: return@ReadOnlyProperty defaultValue
+    if (thisRef.isNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
+    thisRef.decode(serializer, element)
+}
+
+private fun <V> missingValue(
+    key: String,
+    serializer: KSerializer<V>
+): V {
+    if (serializer.descriptor.isNullable) {
+        @Suppress("UNCHECKED_CAST")
+        return null as V
+    }
+    throw NoSuchElementException("Missing property: $key")
 }
 
 inline fun <O, V, reified T> backedProperty(
@@ -32,3 +50,10 @@ inline fun <O, V, reified T> backedProperty(
     serializer: KSerializer<T> = serializer(),
 ): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
     createBackedProperty(key, serializer)
+
+inline fun <O, V, reified T> backedProperty(
+    key: String? = null,
+    defaultValue: T,
+    serializer: KSerializer<T> = serializer(),
+): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    createDefaultProperty(key, defaultValue, serializer)

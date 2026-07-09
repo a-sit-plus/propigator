@@ -6,7 +6,6 @@ package at.asitplus.propigator.json
 import at.asitplus.propigator.common.ObjectBacked
 import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -22,6 +21,7 @@ open class JsonObjectBacked(
         if (other !is JsonObjectBacked) return false
         return rawObject == other.rawObject
     }
+
     override fun hashCode(): Int = rawObject.hashCode()
     override fun toString(): String = rawObject.toString()
 
@@ -31,26 +31,6 @@ open class JsonObjectBacked(
     override fun isNull(element: JsonElement): Boolean = element is JsonNull
 
     override fun getElement(key: String): JsonElement? = rawObject[key]
-}
-
-@PublishedApi
-internal fun <T> createDefaultJsonProperty(
-    key: String?,
-    serializer: KSerializer<T>,
-    defaultValue: T,
-): ReadOnlyProperty<JsonObjectBacked, T> =
-    ReadOnlyProperty { thisRef, property ->
-        val actualKey = key ?: property.name
-        val element = thisRef.getElement(actualKey)
-            ?: return@ReadOnlyProperty defaultValue
-        if (thisRef.isNull(element)) return@ReadOnlyProperty readNull(serializer, actualKey)
-        thisRef.decode(serializer, element)
-    }
-
-@Suppress("UNCHECKED_CAST")
-private fun <T> readNull(serializer: KSerializer<T>, actualKey: String): T {
-    if (serializer.descriptor.isNullable) return null as T
-    throw SerializationException("Missing required backing property: $actualKey")
 }
 
 /**
@@ -77,8 +57,20 @@ inline fun <reified T> jsonProperty(
     key: String? = null,
     defaultValue: T,
     serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<JsonObjectBacked, T> =
-    createDefaultJsonProperty(key, serializer, defaultValue)
+): ReadOnlyProperty<JsonObjectBacked, T> = backedProperty(key, defaultValue, serializer)
 
 inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
     ReadOnlyProperty { thisRef, _ -> thisRef.decode(serializer, thisRef.rawObject) }
+
+
+internal fun JsonObject?.strictUnion(other: JsonObject?): JsonObject {
+    if (this == null) return other ?: JsonObject(emptyMap())
+    if (other == null) return this
+
+    val duplicates = this.keys intersect other.keys
+    require(duplicates.isEmpty()) {
+        "Duplicate keys: ${duplicates.joinToString()}"
+    }
+
+    return JsonObject(this + other)
+}
