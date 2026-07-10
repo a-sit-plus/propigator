@@ -24,6 +24,10 @@ private class PersonYamlObject(
     val readOnlyName: String by yamlProperty("name")
     override val foo: ObjectBackedTestPerson.Foo by yamlProperty("foo")
 
+    override fun validate() {
+        super<ObjectBackedTestPerson>.validate()
+    }
+
     object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
 }
 
@@ -49,12 +53,12 @@ internal val YamlObjectBackedTest by matrixSuite {
             decoded.name shouldBe ObjectBackedTestData.name
             decoded.renamed shouldBe ObjectBackedTestData.renamed
             decoded.foo shouldBe ObjectBackedTestData.foo
-            decoded.rawObject["unknown"]!!.content shouldBe "42"
+            decoded.backingObject["unknown"]!!.content shouldBe "42"
 
             val encoded = Yaml.encodeToString(PersonYamlObject.serializer(), decoded)
             val reparsed = Yaml.decodeFromString(PersonYamlObject.serializer(), encoded)
             reparsed.name shouldBe ObjectBackedTestData.name
-            reparsed.rawObject["unknown"]!!.content shouldBe "42"
+            reparsed.backingObject["unknown"]!!.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 

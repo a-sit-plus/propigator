@@ -62,9 +62,9 @@ internal val NimbusSignumInteropTest by matrixSuite {
 
             claims.jsonWebToken.issuer shouldBe issuer
             claims.jsonWebToken.subject shouldBe subject
-            claims.rawObject["foo"] shouldBe JsonPrimitive(foo)
-            claims.rawObject["bar"] shouldBe JsonPrimitive(bar)
-            claims.rawObject["baz"] shouldBe JsonPrimitive(baz)
+            claims.backingObject["foo"] shouldBe JsonPrimitive(foo)
+            claims.backingObject["bar"] shouldBe JsonPrimitive(bar)
+            claims.backingObject["baz"] shouldBe JsonPrimitive(baz)
 
             val forwardedClaims = joseCompliantSerializer
                 .parseToJsonElement(joseCompliantSerializer.encodeToString(claims))

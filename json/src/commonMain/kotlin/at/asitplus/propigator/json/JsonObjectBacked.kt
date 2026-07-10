@@ -5,32 +5,28 @@ package at.asitplus.propigator.json
 
 import at.asitplus.propigator.common.ObjectBacked
 import at.asitplus.propigator.common.backedProperty
+import at.asitplus.propigator.common.slice
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
+typealias JsonBackedProperty<V> =
+    ReadOnlyProperty<JsonObjectBacked, V>
+
 open class JsonObjectBacked(
-    val rawObject: JsonObject,
-    internal val json: Json = Json.Default,
-) : ObjectBacked<JsonElement> {
-    override fun equals(other: Any?): Boolean {
-        if (other !is JsonObjectBacked) return false
-        return rawObject == other.rawObject
-    }
+    override val backingObject: JsonObject,
+    override val serialFormat: Json = Json.Default,
+) : ObjectBacked() {
+    override fun isFormatNull(element: Any?): Boolean = element is JsonNull
 
-    override fun hashCode(): Int = rawObject.hashCode()
-    override fun toString(): String = rawObject.toString()
+    override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
+        backingObject[key]?.let { serialFormat.decodeFromJsonElement(serializer, it) }
 
-    override fun <T> decode(serializer: KSerializer<T>, element: JsonElement): T =
-        json.decodeFromJsonElement(serializer, element)
-
-    override fun isNull(element: JsonElement): Boolean = element is JsonNull
-
-    override fun getElement(key: String): JsonElement? = rawObject[key]
+    override fun <S> getSlice(serializer: KSerializer<S>) =
+        serialFormat.decodeFromJsonElement(serializer, backingObject)
 }
 
 /**
@@ -41,11 +37,11 @@ open class JsonObjectBacked(
  * Required fields are backed as strict types
  * ```val bar: Bar by jsonProperty("bar_obj", CustomBarSerializer)```
  */
-inline fun <reified T> jsonProperty(
+inline fun <reified V> jsonProperty(
     key: String? = null,
-    serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<JsonObjectBacked, T> =
-    backedProperty<JsonObjectBacked, JsonElement, T>(key, serializer)
+    serializer: KSerializer<V> = serializer(),
+): JsonBackedProperty<V> =
+    backedProperty<JsonObjectBacked, V>(key, serializer)
 
 /**
  * Reads [defaultValue] when the backing object does not contain the property key.
@@ -53,17 +49,22 @@ inline fun <reified T> jsonProperty(
  * Serialization still emits the raw backing object unchanged. If defaults should be encoded,
  * construct or receive the backing object with those default fields already present.
  */
-inline fun <reified T> jsonProperty(
+
+inline fun <reified V> jsonProperty(
     key: String? = null,
-    defaultValue: T,
-    serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<JsonObjectBacked, T> = backedProperty(key, defaultValue, serializer)
+    defaultValue: V,
+    serializer: KSerializer<V> = serializer(),
+): JsonBackedProperty<V> = backedProperty(key, defaultValue, serializer)
 
-inline fun <reified T> jsonSlice(serializer: KSerializer<T> = serializer()): ReadOnlyProperty<JsonObjectBacked, T> =
-    ReadOnlyProperty { thisRef, _ -> thisRef.decode(serializer, thisRef.rawObject) }
+inline fun <reified V> jsonSlice(serializer: KSerializer<V> = serializer()): JsonBackedProperty<V> =
+    slice(serializer)
 
-
-internal fun JsonObject?.strictUnion(other: JsonObject?): JsonObject {
+/**
+ * Returns the combined content of two JsonObjects.
+ * If both inputs are zero returns the empty JsonObject
+ */
+@Throws(IllegalArgumentException::class)
+fun JsonObject?.strictUnion(other: JsonObject?): JsonObject {
     if (this == null) return other ?: JsonObject(emptyMap())
     if (other == null) return this
 

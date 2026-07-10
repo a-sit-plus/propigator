@@ -19,7 +19,7 @@ internal val SignumInteropTest by matrixSuite {
                 joseCompliantSerializer.decodeFromString<KeyAttestationJwt>(keyAttestationJwtClaims)
 
             keyAttestation.toKeyAttestationJwt() shouldBe josefKeyAttestation
-            keyAttestation.rawObject["future_claim"] shouldBe JsonObject(
+            keyAttestation.backingObject["future_claim"] shouldBe JsonObject(
                 mapOf("nested" to JsonPrimitive(true)),
             )
 

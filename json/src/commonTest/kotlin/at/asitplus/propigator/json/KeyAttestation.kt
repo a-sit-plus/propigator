@@ -1,6 +1,5 @@
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.signum.indispensable.io.InstantLongSerializer
 import at.asitplus.signum.indispensable.josef.JsonWebKey
 import at.asitplus.signum.indispensable.josef.JsonWebToken
@@ -59,7 +58,7 @@ internal val keyAttestationJwtClaims = """
 internal data class KeyAttestation(
     private val raw: JsonObject,
     private val jsonFormat: Json = joseCompliantSerializer,
-) : JsonObjectBacked(raw, jsonFormat), ObjectBackedValidated {
+) : JsonObjectBacked(raw, jsonFormat) {
     /**
      * We can serialize into data classes
      */

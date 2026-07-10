@@ -4,35 +4,35 @@
 package at.asitplus.propigator.common
 
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
 @PublishedApi
-internal fun <O, V, T> createBackedProperty(
+internal fun <O : ObjectBacked, V> createBackedProperty(
     key: String?,
-    serializer: KSerializer<T>,
-): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    serializer: KSerializer<V>
+): ReadOnlyProperty<O, V> =
     ReadOnlyProperty { thisRef, property ->
         val actualKey = key ?: property.name
-        val element = thisRef.getElement(actualKey)
+        val element: V = thisRef.getElement(actualKey, serializer)
             ?: return@ReadOnlyProperty missingValue(actualKey, serializer)
-        if (thisRef.isNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
-        thisRef.decode(serializer, element)
+        if (thisRef.isFormatNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
+        element
     }
 
 @PublishedApi
-internal fun <O, V, T> createDefaultProperty(
+internal fun <O : ObjectBacked, V> createDefaultProperty(
     key: String?,
-    defaultValue: T,
-    serializer: KSerializer<T>,
-): ReadOnlyProperty<O,T> where O : ObjectBacked<V> = ReadOnlyProperty { thisRef, property ->
-    val actualKey = key ?: property.name
-    val element = thisRef.getElement(actualKey)
-        ?: return@ReadOnlyProperty defaultValue
-    if (thisRef.isNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
-    thisRef.decode(serializer, element)
-}
+    defaultValue: V,
+    serializer: KSerializer<V>,
+): ReadOnlyProperty<O, V> =
+    ReadOnlyProperty { thisRef, property ->
+        val actualKey = key ?: property.name
+        val element: V = thisRef.getElement(actualKey, serializer)
+            ?: return@ReadOnlyProperty defaultValue
+        if (thisRef.isFormatNull(element)) return@ReadOnlyProperty missingValue(actualKey, serializer)
+        element
+    }
 
 private fun <V> missingValue(
     key: String,
@@ -45,15 +45,21 @@ private fun <V> missingValue(
     throw NoSuchElementException("Missing property: $key")
 }
 
-inline fun <O, V, reified T> backedProperty(
+inline fun <O : ObjectBacked, reified V> backedProperty(
     key: String? = null,
-    serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    serializer: KSerializer<V> = serializer(),
+): ReadOnlyProperty<O, V> =
     createBackedProperty(key, serializer)
 
-inline fun <O, V, reified T> backedProperty(
+inline fun <O : ObjectBacked, reified V> backedProperty(
     key: String? = null,
-    defaultValue: T,
-    serializer: KSerializer<T> = serializer(),
-): ReadOnlyProperty<O, T> where O : ObjectBacked<V> =
+    defaultValue: V,
+    serializer: KSerializer<V> = serializer(),
+): ReadOnlyProperty<O, V> =
     createDefaultProperty(key, defaultValue, serializer)
+
+inline fun <O : ObjectBacked, reified S> slice(
+    serializer: KSerializer<S> = serializer()
+): ReadOnlyProperty<O, S> = ReadOnlyProperty { thisRef, _ ->
+    thisRef.getSlice(serializer)
+}

@@ -2,7 +2,6 @@ package at.asitplus.propigator.json
 
 import at.asitplus.propigator.common.ObjectBackedTestData
 import at.asitplus.propigator.common.ObjectBackedTestPerson
-import at.asitplus.propigator.common.ObjectBackedValidated
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -25,6 +24,10 @@ private class PersonJsonObject(
     override val renamed: Boolean by jsonProperty("some_json_key")
     val readOnlyName: String by jsonProperty("name")
     override val foo: ObjectBackedTestPerson.Foo by jsonProperty("foo")
+
+    override fun validate() {
+        super<ObjectBackedTestPerson>.validate()
+    }
 
     object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
 }
@@ -57,7 +60,7 @@ private val encodeDefaultsJson = Json { encodeDefaults = true }
 private class DefaultedJsonObject(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedValidated {
+) : JsonObjectBacked(raw, json) {
     val id: String by jsonProperty()
     val status: String by jsonProperty(defaultValue = "active")
     val customScore: Int by jsonProperty("custom_score", defaultValue = 7, serializer = StringBackedIntSerializer)
@@ -106,12 +109,12 @@ internal val JsonObjectBackedTest by matrixSuite {
             decoded.name shouldBe ObjectBackedTestData.name
             decoded.renamed shouldBe ObjectBackedTestData.renamed
             decoded.foo shouldBe ObjectBackedTestData.foo
-            decoded.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
+            decoded.backingObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
             val encoded = json.encodeToString(PersonJsonObject.serializer(), decoded)
             val reparsed = json.decodeFromString(PersonJsonObject.serializer(), encoded)
             reparsed.name shouldBe ObjectBackedTestData.name
-            reparsed.rawObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
+            reparsed.backingObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 
@@ -138,7 +141,7 @@ internal val JsonObjectBackedTest by matrixSuite {
                 decodedWithDefaultFormat.nested
             }
 
-            val decodedWithCustomFormat = Json.Default.decodeFromString(
+            val decodedWithCustomFormat = Json.decodeFromString(
                 IgnoreUnknownFormatJsonObjectSerializer,
                 payload,
             )
@@ -153,7 +156,7 @@ internal val JsonObjectBackedTest by matrixSuite {
                 put("some_json_key", true)
             })
 
-            val encoded = Json { }.encodeToString(PersonJsonObject.serializer(), obj)
+            val encoded = Json.encodeToString(PersonJsonObject.serializer(), obj)
 
             Json.parseToJsonElement(encoded).jsonObject["id"]!!.jsonPrimitive.content shouldBe "p-1"
         }

@@ -88,7 +88,7 @@ internal val EncodeDefaultsTest by matrixSuite {
         "Default values are being honored during decoding" {
             val person = serializer.decodeFromJsonElement<PersonObject>(encodedWithoutDefaults)
             person.personData.name shouldBe "Bob"
-            person.rawObject.keys.shouldNotContain("name")
+            person.backingObject.keys.shouldNotContain("name")
         }
 
         "Default values are correctly encoded" {
@@ -114,8 +114,8 @@ internal val EncodeDefaultsTest by matrixSuite {
                 id = 5,
                 isCool = true,
             )
-            person.rawObject.contains("name") shouldBe serializer.configuration.encodeDefaults
-            (person.rawObject["fancy"] == JsonPrimitive("ycnaF")) shouldBe serializer.configuration.encodeDefaults
+            person.backingObject.contains("name") shouldBe serializer.configuration.encodeDefaults
+            (person.backingObject["fancy"] == JsonPrimitive("ycnaF")) shouldBe serializer.configuration.encodeDefaults
         }
     }
 }
