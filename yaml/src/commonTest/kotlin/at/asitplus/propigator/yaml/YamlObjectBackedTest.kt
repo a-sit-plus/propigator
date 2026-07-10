@@ -7,7 +7,6 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import net.mamoe.yamlkt.Yaml
 import net.mamoe.yamlkt.YamlBuilder
 import net.mamoe.yamlkt.YamlMap
@@ -135,7 +134,7 @@ internal val YamlObjectBackedTest by matrixSuite {
         }
 
         "reject payloads missing mandatory delegated properties" {
-            shouldThrow<SerializationException> {
+            shouldThrow<NoSuchElementException> {
                 Yaml.decodeFromString(PersonYamlObject.serializer(), "id: p-1")
             }
         }

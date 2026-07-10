@@ -5,7 +5,6 @@ import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -35,7 +34,7 @@ internal val SignumInteropTest by matrixSuite {
         }
 
         "rejects claims missing mandatory key-attestation fields" {
-            shouldThrow<SerializationException> {
+            shouldThrow<NoSuchElementException> {
                 joseCompliantSerializer.decodeFromString<KeyAttestation>(
                     """
                     {

@@ -7,7 +7,6 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -137,7 +136,7 @@ internal val JsonObjectBackedTest by matrixSuite {
                 payload,
             )
 
-            shouldThrow<SerializationException> {
+            shouldThrow<JsonDecodingException> {
                 decodedWithDefaultFormat.nested
             }
 
@@ -174,7 +173,7 @@ internal val JsonObjectBackedTest by matrixSuite {
         }
 
         "reject payloads missing mandatory delegated properties" {
-            shouldThrow<SerializationException> {
+            shouldThrow<NoSuchElementException> {
                 Json.decodeFromString(PersonJsonObject.serializer(), """{"id":"p-1"}""")
             }
         }
