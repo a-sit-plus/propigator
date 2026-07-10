@@ -38,7 +38,7 @@ For example, if an incoming JSON object contains a future field:
 { "id": "42", "name": "Grace", "futureField": "preserved" }
 ```
 
-and your wrapper only exposes `id` and `name`, `futureField` stays in `rawObject` and is serialized again unchanged. Delegated properties never rebuild, overwrite, or remove backing fields.
+and your wrapper only exposes `id` and `name`, `futureField` stays in `backingObject` and is serialized again unchanged. Delegated properties never rebuild, overwrite, or remove backing fields.
 
 ## Using it in your Project
 
@@ -59,9 +59,9 @@ Define a wrapper around `JsonObjectBacked` and add typed properties with `jsonPr
 ```kotlin
 @Serializable(with = PersonJsonObject.Serializer::class)
 class PersonJsonObject(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedValidated {
+    backingObject: JsonObject,
+    serialFormat: Json = Json.Default,
+) : JsonObjectBacked(backingObject, serialFormat) {
     val id: String by jsonProperty()
     val name: String by jsonProperty()
     val active: Boolean by jsonProperty("is_active")
@@ -103,9 +103,9 @@ YAML uses the same pattern with `YamlObjectBacked` and `yamlProperty()`.
 ```kotlin
 @Serializable(with = ServiceYamlObject.Serializer::class)
 class ServiceYamlObject(
-    raw: YamlMap,
-    yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, yaml), ObjectBackedValidated {
+    backingObject: YamlMap,
+    serialFormat: Yaml = Yaml.Default,
+) : YamlObjectBacked(backingObject, serialFormat) {
     val id: String by yamlProperty()
     val endpoint: String by yamlProperty()
     val description: String? by yamlProperty()
@@ -151,13 +151,13 @@ val nickname: String? by jsonProperty("nick")
 
 If no key is supplied, the Kotlin property name is used as the object key. If a key is supplied, that key is used instead.
 
-Reading a missing or explicit-null required property throws `SerializationException`:
+Reading a missing required property throws `NoSuchElementException`:
 
 ```kotlin
-val id = person.id // throws if "id" is absent or null
+val id = person.id // throws if "id" is absent
 ```
 
-For nullable properties, missing keys and explicit format-native null values both read as `null`.
+For nullable properties, missing keys read as `null`.
 The serializer must also be nullable; declaring the Kotlin property as `String?` gives the delegate a nullable serializer.
 
 JSON-backed properties can also define a read default for missing keys:
@@ -167,7 +167,7 @@ val active: Boolean by jsonProperty(defaultValue = true)
 val displayName: String by jsonProperty("display_name", defaultValue = "Anonymous")
 ```
 
-This mirrors Kotlin serialization's absent-field default semantics for reads. It does not add the field to `rawObject`, and serialization still emits the preserved raw JSON object unchanged. If `Json { encodeDefaults = true }` should affect the serialized payload, construct or receive the backing `JsonObject` with those default fields already present.
+This mirrors Kotlin serialization's absent-field default semantics for reads. It does not add the field to `backingObject`, and serialization still emits the preserved backing JSON object unchanged. If `Json { encodeDefaults = true }` should affect the serialized payload, construct or receive the backing `JsonObject` with those default fields already present.
 
 ## Whole-Object Slices
 
@@ -183,9 +183,9 @@ data class PublicClaims(
 
 @Serializable(with = ClaimsJsonObject.Serializer::class)
 class ClaimsJsonObject(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedValidated {
+    backingObject: JsonObject,
+    serialFormat: Json = Json.Default,
+) : JsonObjectBacked(backingObject, serialFormat) {
     val claims: PublicClaims by jsonSlice()
     val nonce: String? by jsonProperty()
 
@@ -216,7 +216,7 @@ val person = json.decodeFromString(PersonJsonObject.serializer(), payload)
 println(person.name)
 ```
 
-For parse-time checks, implement `ObjectBackedValidated` and touch only the fields your component requires:
+For parse-time checks, override `validate()` and touch only the fields your component requires:
 
 ```kotlin
 override fun validate() {
@@ -225,7 +225,7 @@ override fun validate() {
 }
 ```
 
-The format serializer calls `validate()` after decoding if the object implements `ObjectBackedValidated`.
+The format serializer calls `validate()` after decoding. The default implementation does nothing.
 This is useful for open-ended formats such as JOSE, where one layer may need typed access to a few fields while preserving claims, headers, or extensions for a later validation layer.
 
 ## Extension Properties
@@ -241,13 +241,13 @@ val PersonJsonObject.displayLabel: String
 
 ## Raw Objects and Serializers
 
-Use `rawObject` to inspect, pass through, or debug the complete backing object:
+Use `backingObject` to inspect, pass through, or debug the complete backing object:
 
 ```kotlin
-val raw: JsonObject = person.rawObject
+val raw: JsonObject = person.backingObject
 ```
 
-For JSON, `rawObject` is a `JsonObject`; for YAML, it is a `YamlMap`. To create a modified payload, build a new format object and wrap it.
+For JSON, `backingObject` is a `JsonObject`; for YAML, it is a `YamlMap`. To create a modified payload, build a new format object and wrap it.
 
 Attach a serializer to each wrapper type:
 
@@ -258,9 +258,9 @@ class PersonJsonObject(...) : JsonObjectBacked(...) {
 }
 ```
 
-The serializer wraps the raw object on decode and serializes the same raw object on encode. Delegated properties are semantic accessors, not constructor properties.
+The serializer wraps the backing object on decode and serializes the same backing object on encode. Delegated properties are semantic accessors, not constructor properties.
 
-Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Pass a custom format to the object-backed serializer when delegated properties need non-default settings or serializers:
+Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor as `serialFormat`. Pass a custom format to the object-backed serializer when delegated properties need non-default settings or serializers:
 
 ```kotlin
 private val personJson = Json { ignoreUnknownKeys = true }
@@ -272,6 +272,25 @@ object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
 ```
 
 Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
+
+## Building Backing JSON
+
+When constructing a JSON-backed object from existing serializable values, encode those values to `JsonObject`s and merge them before wrapping. `strictUnion()` combines two JSON objects and rejects duplicate keys:
+
+```kotlin
+constructor(
+    personData: PersonData,
+    addressData: AddressData? = null,
+    serialFormat: Json = Json.Default,
+) : this(
+    backingObject = serialFormat.encodeToJsonElement(personData).jsonObject.strictUnion(
+        addressData?.let { serialFormat.encodeToJsonElement(it).jsonObject }
+    ),
+    serialFormat = serialFormat,
+)
+```
+
+`strictUnion()` accepts `null` on either side. Duplicate keys throw `IllegalArgumentException` so overlapping generated fields cannot silently overwrite each other.
 
 ## Choosing Data Classes vs Propigator
 
@@ -293,7 +312,7 @@ Use Propigator when:
 - Propigator wraps object/map payloads, not arbitrary top-level scalar values.
 - YAML element conversion is intentionally simple: individual values are rendered through YAML and decoded again with `yamlkt`.
 - Delegated properties are runtime accessors. They are not constructor properties and do not appear as separate generated serialization fields.
-- `ObjectBackedValidated` validates only what your `validate()` function reads.
+- `validate()` checks only what your override reads.
 
 ## Contributing
 
