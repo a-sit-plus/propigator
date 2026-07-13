@@ -28,7 +28,6 @@ private class NimbusJwtClaims(
 
     object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializerTemplate(
         create = ::NimbusJwtClaims,
-        json = joseCompliantSerializer,
     )
 }
 

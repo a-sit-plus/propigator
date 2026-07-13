@@ -260,16 +260,15 @@ class PersonJsonObject(...) : JsonObjectBacked(...) {
 
 The serializer wraps the backing object on decode and serializes the same backing object on encode. Delegated properties are semantic accessors, not constructor properties.
 
-Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor as `serialFormat`. Pass a custom format to the object-backed serializer when delegated properties need non-default settings or serializers:
+Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor as `serialFormat`. When a JSON-backed wrapper is deserialized, it retains the `Json` instance performing the decode. Delegated properties therefore use the same configuration and serializers module as the outer decode:
 
 ```kotlin
 private val personJson = Json { ignoreUnknownKeys = true }
 
-object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
-    create = ::PersonJsonObject,
-    json = personJson,
-)
+val person = personJson.decodeFromString<PersonJsonObject>(payload)
 ```
+
+YAML-backed serializers instead receive their `Yaml` instance when the serializer is constructed.
 
 Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
 

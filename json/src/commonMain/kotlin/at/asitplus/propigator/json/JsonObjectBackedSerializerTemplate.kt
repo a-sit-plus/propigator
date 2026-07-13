@@ -12,14 +12,13 @@ import kotlinx.serialization.json.*
 
 class JsonObjectBackedSerializerTemplate<T : JsonObjectBacked>(
     private val create: (JsonObject, Json) -> T,
-    private val json: Json = Json.Default,
 ) : KSerializer<T> {
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): T {
         decoder as? JsonDecoder
             ?: error("JsonObjectBackedSerializer only works with kotlinx.serialization JSON")
-        return create(decoder.decodeJsonElement().jsonObject, json).also { it.validate() }
+        return create(decoder.decodeJsonElement().jsonObject, decoder.json).also { it.validate() }
     }
 
     override fun serialize(encoder: Encoder, value: T) {

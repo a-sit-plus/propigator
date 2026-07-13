@@ -33,26 +33,6 @@ private class PersonJsonObject(
 
 private val PersonJsonObject.nickname: String? by jsonProperty("nick")
 
-@Serializable
-private data class NestedName(
-    val name: String,
-)
-
-@Serializable(with = FormatJsonObject.Serializer::class)
-private class FormatJsonObject(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json) {
-    val nested: NestedName by jsonProperty()
-
-    object Serializer : KSerializer<FormatJsonObject> by JsonObjectBackedSerializerTemplate(::FormatJsonObject)
-}
-
-private val ignoreUnknownJson = Json { ignoreUnknownKeys = true }
-
-private object IgnoreUnknownFormatJsonObjectSerializer :
-    KSerializer<FormatJsonObject> by JsonObjectBackedSerializerTemplate(::FormatJsonObject, ignoreUnknownJson)
-
 private val encodeDefaultsJson = Json { encodeDefaults = true }
 
 @Serializable(with = DefaultedJsonObject.Serializer::class)
@@ -85,7 +65,7 @@ private object StringBackedIntSerializer : KSerializer<Int> {
 }
 
 private object EncodeDefaultsDefaultedJsonObjectSerializer :
-    KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject, encodeDefaultsJson)
+    KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject)
 
 internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {
@@ -127,25 +107,6 @@ internal val JsonObjectBackedTest by matrixSuite {
 
             obj.readOnlyName shouldBe "Ada"
             obj.nickname shouldBe "countess"
-        }
-
-        "decode delegated properties with the serializer construction Json by default" {
-            val payload = """{"nested":{"name":"Ada","unknown":true}}"""
-            val decodedWithDefaultFormat = ignoreUnknownJson.decodeFromString(
-                FormatJsonObject.serializer(),
-                payload,
-            )
-
-            shouldThrow<JsonDecodingException> {
-                decodedWithDefaultFormat.nested
-            }
-
-            val decodedWithCustomFormat = Json.decodeFromString(
-                IgnoreUnknownFormatJsonObjectSerializer,
-                payload,
-            )
-
-            decodedWithCustomFormat.nested shouldBe NestedName("Ada")
         }
 
         "allow serialization with an equivalent Json configuration" {
