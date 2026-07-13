@@ -62,7 +62,7 @@ private class PersonObject(
         json = serialFormat,
     )
 
-    object Serializer : KSerializer<PersonObject> by JsonObjectBackedSerializer(::PersonObject)
+    object Serializer : KSerializer<PersonObject> by JsonObjectBackedSerializerTemplate(::PersonObject)
 }
 
 private val encodeDefaultsJson = Json { encodeDefaults = true }

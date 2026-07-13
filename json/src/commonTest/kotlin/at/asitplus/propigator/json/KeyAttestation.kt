@@ -81,7 +81,7 @@ internal data class KeyAttestation(
         issuedAt
     }
 
-    object Serializer : KSerializer<KeyAttestation> by JsonObjectBackedSerializer(
+    object Serializer : KSerializer<KeyAttestation> by JsonObjectBackedSerializerTemplate(
         create = ::KeyAttestation,
         json = joseCompliantSerializer,
     )

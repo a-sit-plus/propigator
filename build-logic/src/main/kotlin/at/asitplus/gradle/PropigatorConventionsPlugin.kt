@@ -138,6 +138,12 @@ class PropigatorConventionsExtension(private val project: Project) {
             useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
             sign(extensions.getByType<PublishingExtension>().publications)
         }
+
+        tasks.register("publishAllPublicationsToMavenLocal") {
+            this.group = "publishing"
+            this.description = "Publishes all Maven publications produced by this project to the local Maven cache."
+            this.dependsOn("publishToMavenLocal")
+        }
     }
 
 

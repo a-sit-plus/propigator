@@ -10,7 +10,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
-class JsonObjectBackedSerializer<T : JsonObjectBacked>(
+class JsonObjectBackedSerializerTemplate<T : JsonObjectBacked>(
     private val create: (JsonObject, Json) -> T,
     private val json: Json = Json.Default,
 ) : KSerializer<T> {

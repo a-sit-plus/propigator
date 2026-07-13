@@ -27,7 +27,7 @@ private class PersonYamlObject(
         super<ObjectBackedTestPerson>.validate()
     }
 
-    object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializer(create = ::PersonYamlObject)
+    object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializerTemplate(create = ::PersonYamlObject)
 }
 
 private val PersonYamlObject.nickname: String? by yamlProperty("nick")

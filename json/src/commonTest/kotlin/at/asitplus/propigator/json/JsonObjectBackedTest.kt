@@ -28,7 +28,7 @@ private class PersonJsonObject(
         super<ObjectBackedTestPerson>.validate()
     }
 
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
+    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializerTemplate(::PersonJsonObject)
 }
 
 private val PersonJsonObject.nickname: String? by jsonProperty("nick")
@@ -45,13 +45,13 @@ private class FormatJsonObject(
 ) : JsonObjectBacked(raw, json) {
     val nested: NestedName by jsonProperty()
 
-    object Serializer : KSerializer<FormatJsonObject> by JsonObjectBackedSerializer(::FormatJsonObject)
+    object Serializer : KSerializer<FormatJsonObject> by JsonObjectBackedSerializerTemplate(::FormatJsonObject)
 }
 
 private val ignoreUnknownJson = Json { ignoreUnknownKeys = true }
 
 private object IgnoreUnknownFormatJsonObjectSerializer :
-    KSerializer<FormatJsonObject> by JsonObjectBackedSerializer(::FormatJsonObject, ignoreUnknownJson)
+    KSerializer<FormatJsonObject> by JsonObjectBackedSerializerTemplate(::FormatJsonObject, ignoreUnknownJson)
 
 private val encodeDefaultsJson = Json { encodeDefaults = true }
 
@@ -70,7 +70,7 @@ private class DefaultedJsonObject(
         customScore
     }
 
-    object Serializer : KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializer(::DefaultedJsonObject)
+    object Serializer : KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject)
 }
 
 private object StringBackedIntSerializer : KSerializer<Int> {
@@ -85,7 +85,7 @@ private object StringBackedIntSerializer : KSerializer<Int> {
 }
 
 private object EncodeDefaultsDefaultedJsonObjectSerializer :
-    KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializer(::DefaultedJsonObject, encodeDefaultsJson)
+    KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject, encodeDefaultsJson)
 
 internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {

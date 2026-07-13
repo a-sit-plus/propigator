@@ -26,7 +26,7 @@ private class NimbusJwtClaims(
 ) : JsonObjectBacked(raw, json) {
     val jsonWebToken: JsonWebToken by jsonSlice()
 
-    object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializer(
+    object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializerTemplate(
         create = ::NimbusJwtClaims,
         json = joseCompliantSerializer,
     )
