@@ -13,10 +13,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
-typealias JsonBackedProperty<V> =
-    ReadOnlyProperty<JsonObjectBacked, V>
+typealias JsonProperty<V> =
+    ReadOnlyProperty<JsonBacked, V>
 
-open class JsonObjectBacked(
+open class JsonBacked(
     override val backingObject: JsonObject,
     override val serialFormat: Json = Json.Default,
 ) : ObjectBacked() {
@@ -40,8 +40,8 @@ open class JsonObjectBacked(
 inline fun <reified V> jsonProperty(
     key: String? = null,
     serializer: KSerializer<V> = serializer(),
-): JsonBackedProperty<V> =
-    backedProperty<JsonObjectBacked, V>(key, serializer)
+): JsonProperty<V> =
+    backedProperty<JsonBacked, V>(key, serializer)
 
 /**
  * Reads [defaultValue] when the backing object does not contain the property key.
@@ -54,9 +54,9 @@ inline fun <reified V> jsonProperty(
     key: String? = null,
     defaultValue: V,
     serializer: KSerializer<V> = serializer(),
-): JsonBackedProperty<V> = backedProperty(key, defaultValue, serializer)
+): JsonProperty<V> = backedProperty(key, defaultValue, serializer)
 
-inline fun <reified V> jsonSlice(serializer: KSerializer<V> = serializer()): JsonBackedProperty<V> =
+inline fun <reified V> jsonSlice(serializer: KSerializer<V> = serializer()): JsonProperty<V> =
     slice(serializer)
 
 /**

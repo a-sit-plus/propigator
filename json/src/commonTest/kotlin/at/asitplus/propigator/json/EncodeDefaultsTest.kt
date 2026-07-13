@@ -32,7 +32,7 @@ object FancySerializer : KSerializer<String> {
     }
 }
 
-private val PersonObject.externalParameter: String by jsonProperty("didntseeitcoming")
+private val Person.externalParameter: String by jsonProperty("didntseeitcoming")
 
 @Serializable
 private data class PersonData(
@@ -47,11 +47,11 @@ private data class PersonData(
     val fancyString: String = "Fancy",
 )
 
-@Serializable(with = PersonObject.Serializer::class)
-private class PersonObject(
+@Serializable(with = Person.Serializer::class)
+private class Person(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, json) {
+) : JsonBacked(raw, json) {
     val personData: PersonData by jsonSlice()
     val addressData: AddressData? by jsonSlice()
 
@@ -62,7 +62,7 @@ private class PersonObject(
         json = serialFormat,
     )
 
-    object Serializer : KSerializer<PersonObject> by JsonObjectBackedSerializerTemplate(::PersonObject)
+    object Serializer : KSerializer<Person> by JsonBackedSerializerTemplate(::Person)
 }
 
 private val encodeDefaultsJson = Json { encodeDefaults = true }
@@ -86,20 +86,20 @@ internal val EncodeDefaultsTest by matrixSuite {
         nameFn = { "encodeDefaults = ${it.configuration.encodeDefaults}" }
     ) - { serializer ->
         "Default values are being honored during decoding" {
-            val person = serializer.decodeFromJsonElement<PersonObject>(encodedWithoutDefaults)
+            val person = serializer.decodeFromJsonElement<Person>(encodedWithoutDefaults)
             person.personData.name shouldBe "Bob"
             person.backingObject.keys.shouldNotContain("name")
         }
 
         "Default values are correctly encoded" {
-            val person = PersonObject(
+            val person = Person(
                 personData = PersonData(
                     id = 5,
                     isCool = true
                 ),
                 serialFormat = serializer
             )
-            val encoded = serializer.encodeToJsonElement(PersonObject.serializer(), person).jsonObject
+            val encoded = serializer.encodeToJsonElement(Person.serializer(), person).jsonObject
             val expected = buildJsonObject {
                 put("id", 5)
                 put("is_cool", true)

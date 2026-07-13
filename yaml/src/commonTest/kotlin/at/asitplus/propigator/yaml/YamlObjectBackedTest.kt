@@ -12,11 +12,11 @@ import net.mamoe.yamlkt.YamlBuilder
 import net.mamoe.yamlkt.YamlMap
 import net.mamoe.yamlkt.YamlPrimitive
 
-@Serializable(with = PersonYamlObject.Serializer::class)
-private class PersonYamlObject(
+@Serializable(with = PersonYaml.Serializer::class)
+private class PersonYaml(
     raw: YamlMap,
     yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, yaml), ObjectBackedTestPerson {
+) : YamlBacked(raw, yaml), ObjectBackedTestPerson {
     override val id: String by yamlProperty()
     override val name: String by yamlProperty()
     override val renamed: Boolean by yamlProperty("some_yaml_key")
@@ -27,16 +27,16 @@ private class PersonYamlObject(
         super<ObjectBackedTestPerson>.validate()
     }
 
-    object Serializer : KSerializer<PersonYamlObject> by Yaml.Default.objectBackedSerializer(::PersonYamlObject)
+    object Serializer : KSerializer<PersonYaml> by Yaml.Default.objectBackedSerializer(::PersonYaml)
 }
 
-private val PersonYamlObject.nickname: String? by yamlProperty("nick")
+private val PersonYaml.nickname: String? by yamlProperty("nick")
 
 internal val YamlObjectBackedTest by matrixSuite {
     "YAML-backed objects" - {
         "round-trip known properties while preserving unknown fields" {
             val decoded = Yaml.decodeFromString(
-                PersonYamlObject.serializer(),
+                PersonYaml.serializer(),
                 """
                 id: p-1
                 name: Ada
@@ -54,15 +54,15 @@ internal val YamlObjectBackedTest by matrixSuite {
             decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.backingObject["unknown"]!!.content shouldBe "42"
 
-            val encoded = Yaml.encodeToString(PersonYamlObject.serializer(), decoded)
-            val reparsed = Yaml.decodeFromString(PersonYamlObject.serializer(), encoded)
+            val encoded = Yaml.encodeToString(PersonYaml.serializer(), decoded)
+            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
             reparsed.name shouldBe ObjectBackedTestData.name
             reparsed.backingObject["unknown"]!!.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 
         "read member and extension val delegates from the backing object" {
-            val obj = PersonYamlObject(
+            val obj = PersonYaml(
                 YamlMap(
                     mapOf(
                         YamlPrimitive("id") to YamlPrimitive("p-1"),
@@ -81,7 +81,7 @@ internal val YamlObjectBackedTest by matrixSuite {
             val yaml = Yaml {
                 stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION
             }
-            val serializer = yaml.objectBackedSerializer(::PersonYamlObject)
+            val serializer = yaml.objectBackedSerializer(::PersonYaml)
             val decoded = yaml.decodeFromString(
                 serializer,
                 """
@@ -98,7 +98,7 @@ internal val YamlObjectBackedTest by matrixSuite {
         }
 
         "allow serialization when the object carries an equivalent Yaml configuration" {
-            val obj = PersonYamlObject(
+            val obj = PersonYaml(
                 YamlMap(
                     mapOf(
                         YamlPrimitive("id") to YamlPrimitive("p-1"),
@@ -115,14 +115,14 @@ internal val YamlObjectBackedTest by matrixSuite {
                 Yaml { },
             )
 
-            val encoded = Yaml.encodeToString(PersonYamlObject.serializer(), obj)
-            val reparsed = Yaml.decodeFromString(PersonYamlObject.serializer(), encoded)
+            val encoded = Yaml.encodeToString(PersonYaml.serializer(), obj)
+            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
 
             reparsed.id shouldBe "p-1"
         }
 
         "reject serialization when the object carries a different Yaml configuration" {
-            val obj = PersonYamlObject(
+            val obj = PersonYaml(
                 YamlMap(
                     mapOf(
                         YamlPrimitive("id") to YamlPrimitive("p-1"),
@@ -134,12 +134,12 @@ internal val YamlObjectBackedTest by matrixSuite {
             )
 
             shouldThrow<IllegalArgumentException> {
-                Yaml.encodeToString(PersonYamlObject.serializer(), obj)
+                Yaml.encodeToString(PersonYaml.serializer(), obj)
             }
         }
 
         "resolve slice from the backing object" {
-            val obj = object : YamlObjectBacked(
+            val obj = object : YamlBacked(
                 YamlMap(
                     mapOf(
                         YamlPrimitive("bar") to YamlPrimitive("2"),
@@ -155,7 +155,7 @@ internal val YamlObjectBackedTest by matrixSuite {
 
         "reject payloads missing mandatory delegated properties" {
             shouldThrow<NoSuchElementException> {
-                Yaml.decodeFromString(PersonYamlObject.serializer(), "id: p-1")
+                Yaml.decodeFromString(PersonYaml.serializer(), "id: p-1")
             }
         }
     }

@@ -23,10 +23,10 @@ import kotlin.random.Random
 private class NimbusJwtClaims(
     raw: JsonObject,
     json: Json = joseCompliantSerializer,
-) : JsonObjectBacked(raw, json) {
+) : JsonBacked(raw, json) {
     val jsonWebToken: JsonWebToken by jsonSlice()
 
-    object Serializer : KSerializer<NimbusJwtClaims> by JsonObjectBackedSerializerTemplate(
+    object Serializer : KSerializer<NimbusJwtClaims> by JsonBackedSerializerTemplate(
         create = ::NimbusJwtClaims,
     )
 }

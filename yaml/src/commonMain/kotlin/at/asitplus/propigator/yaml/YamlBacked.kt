@@ -13,10 +13,10 @@ import net.mamoe.yamlkt.YamlMap
 import net.mamoe.yamlkt.YamlPrimitive
 import kotlin.properties.ReadOnlyProperty
 
-typealias YamlBackedProperty<V> =
-        ReadOnlyProperty<YamlObjectBacked, V>
+typealias YamlProperty<V> =
+        ReadOnlyProperty<YamlBacked, V>
 
-open class YamlObjectBacked(
+open class YamlBacked(
     override val backingObject: YamlMap,
     override val serialFormat: Yaml = Yaml.Default,
 ) : ObjectBacked() {
@@ -38,8 +38,8 @@ open class YamlObjectBacked(
 inline fun <reified T> yamlProperty(
     key: String? = null,
     serializer: KSerializer<T> = serializer(),
-): YamlBackedProperty<T> =
-    backedProperty<YamlObjectBacked, T>(key, serializer)
+): YamlProperty<T> =
+    backedProperty<YamlBacked, T>(key, serializer)
 
-inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): YamlBackedProperty<T> =
+inline fun <reified T> yamlSlice(serializer: KSerializer<T> = serializer()): YamlProperty<T> =
     slice(serializer)

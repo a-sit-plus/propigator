@@ -10,7 +10,7 @@ import kotlinx.serialization.encoding.Encoder
 import net.mamoe.yamlkt.Yaml
 import net.mamoe.yamlkt.YamlMap
 
-class YamlObjectBackedSerializerTemplate<T : YamlObjectBacked>(
+class YamlBackedSerializerTemplate<T : YamlBacked>(
     private val yaml: Yaml = Yaml.Default,
     private val create: (YamlMap, Yaml) -> T,
 ) : KSerializer<T> {
@@ -35,9 +35,9 @@ class YamlObjectBackedSerializerTemplate<T : YamlObjectBacked>(
  * YAMLKt does not expose the originating [Yaml] through its decoder, so the returned serializer
  * should be used with this same instance for both decoding and encoding.
  */
-fun <T : YamlObjectBacked> Yaml.objectBackedSerializer(
+fun <T : YamlBacked> Yaml.objectBackedSerializer(
     create: (YamlMap, Yaml) -> T,
-): KSerializer<T> = YamlObjectBackedSerializerTemplate(
+): KSerializer<T> = YamlBackedSerializerTemplate(
     yaml = this,
     create = create,
 )

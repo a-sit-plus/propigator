@@ -13,11 +13,11 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
-@Serializable(with = PersonJsonObject.Serializer::class)
-private class PersonJsonObject(
+@Serializable(with = PersonJson.Serializer::class)
+private class PersonJson(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedTestPerson {
+) : JsonBacked(raw, json), ObjectBackedTestPerson {
     override val id: String by jsonProperty()
     override val name: String by jsonProperty()
     override val renamed: Boolean by jsonProperty("some_json_key")
@@ -28,18 +28,18 @@ private class PersonJsonObject(
         super<ObjectBackedTestPerson>.validate()
     }
 
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializerTemplate(::PersonJsonObject)
+    object Serializer : KSerializer<PersonJson> by JsonBackedSerializerTemplate(::PersonJson)
 }
 
-private val PersonJsonObject.nickname: String? by jsonProperty("nick")
+private val PersonJson.nickname: String? by jsonProperty("nick")
 
 private val encodeDefaultsJson = Json { encodeDefaults = true }
 
-@Serializable(with = DefaultedJsonObject.Serializer::class)
-private class DefaultedJsonObject(
+@Serializable(with = DefaultedJson.Serializer::class)
+private class DefaultedJson(
     raw: JsonObject,
     json: Json = Json.Default,
-) : JsonObjectBacked(raw, json) {
+) : JsonBacked(raw, json) {
     val id: String by jsonProperty()
     val status: String by jsonProperty(defaultValue = "active")
     val customScore: Int by jsonProperty("custom_score", defaultValue = 7, serializer = StringBackedIntSerializer)
@@ -50,7 +50,7 @@ private class DefaultedJsonObject(
         customScore
     }
 
-    object Serializer : KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject)
+    object Serializer : KSerializer<DefaultedJson> by JsonBackedSerializerTemplate(::DefaultedJson)
 }
 
 private object StringBackedIntSerializer : KSerializer<Int> {
@@ -65,14 +65,14 @@ private object StringBackedIntSerializer : KSerializer<Int> {
 }
 
 private object EncodeDefaultsDefaultedJsonObjectSerializer :
-    KSerializer<DefaultedJsonObject> by JsonObjectBackedSerializerTemplate(::DefaultedJsonObject)
+    KSerializer<DefaultedJson> by JsonBackedSerializerTemplate(::DefaultedJson)
 
 internal val JsonObjectBackedTest by matrixSuite {
     "JSON-backed objects" - {
         "round-trip known properties while preserving unknown fields" {
             val json = Json { prettyPrint = false }
             val decoded = json.decodeFromString(
-                PersonJsonObject.serializer(),
+                PersonJson.serializer(),
                 """{"id":"p-1",
                     "name":"Ada",
                     "some_json_key":true,
@@ -90,15 +90,15 @@ internal val JsonObjectBackedTest by matrixSuite {
             decoded.foo shouldBe ObjectBackedTestData.foo
             decoded.backingObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
 
-            val encoded = json.encodeToString(PersonJsonObject.serializer(), decoded)
-            val reparsed = json.decodeFromString(PersonJsonObject.serializer(), encoded)
+            val encoded = json.encodeToString(PersonJson.serializer(), decoded)
+            val reparsed = json.decodeFromString(PersonJson.serializer(), encoded)
             reparsed.name shouldBe ObjectBackedTestData.name
             reparsed.backingObject["unknown"]!!.jsonPrimitive.content shouldBe "42"
             reparsed.foo shouldBe ObjectBackedTestData.foo
         }
 
         "read member and extension val delegates from the backing object" {
-            val obj = PersonJsonObject(buildJsonObject {
+            val obj = PersonJson(buildJsonObject {
                 put("id", "p-1")
                 put("name", "Ada")
                 put("some_json_key", true)
@@ -110,38 +110,38 @@ internal val JsonObjectBackedTest by matrixSuite {
         }
 
         "allow serialization with an equivalent Json configuration" {
-            val obj = PersonJsonObject(buildJsonObject {
+            val obj = PersonJson(buildJsonObject {
                 put("id", "p-1")
                 put("name", "Ada")
                 put("some_json_key", true)
             })
 
-            val encoded = Json.encodeToString(PersonJsonObject.serializer(), obj)
+            val encoded = Json.encodeToString(PersonJson.serializer(), obj)
 
             Json.parseToJsonElement(encoded).jsonObject["id"]!!.jsonPrimitive.content shouldBe "p-1"
         }
 
         "reject serialization with a mismatching Json configuration" {
-            val obj = PersonJsonObject(buildJsonObject {
+            val obj = PersonJson(buildJsonObject {
                 put("id", "p-1")
                 put("name", "Ada")
                 put("some_json_key", true)
             })
 
             shouldThrow<IllegalArgumentException> {
-                Json { prettyPrint = true }.encodeToString(PersonJsonObject.serializer(), obj)
+                Json { prettyPrint = true }.encodeToString(PersonJson.serializer(), obj)
             }
         }
 
         "reject payloads missing mandatory delegated properties" {
             shouldThrow<NoSuchElementException> {
-                Json.decodeFromString(PersonJsonObject.serializer(), """{"id":"p-1"}""")
+                Json.decodeFromString(PersonJson.serializer(), """{"id":"p-1"}""")
             }
         }
 
         "read missing defaulted delegated properties from their defaults" {
             val decoded = Json.decodeFromString(
-                DefaultedJsonObject.serializer(),
+                DefaultedJson.serializer(),
                 """{"id":"p-1"}""",
             )
 
@@ -151,7 +151,7 @@ internal val JsonObjectBackedTest by matrixSuite {
 
         "decode present defaulted delegated properties from the backing object" {
             val decoded = Json.decodeFromString(
-                DefaultedJsonObject.serializer(),
+                DefaultedJson.serializer(),
                 """{"id":"p-1","status":"inactive","custom_score":"9"}""",
             )
 
@@ -162,11 +162,11 @@ internal val JsonObjectBackedTest by matrixSuite {
         "encode defaulted delegated properties from the raw backing object only" {
             val jsonWithoutDefaults = Json.Default
             val decodedWithoutDefaults = jsonWithoutDefaults.decodeFromString(
-                DefaultedJsonObject.serializer(),
+                DefaultedJson.serializer(),
                 """{"id":"p-1","unknown":42}""",
             )
             val encodedWithoutDefaults = jsonWithoutDefaults.encodeToString(
-                DefaultedJsonObject.serializer(),
+                DefaultedJson.serializer(),
                 decodedWithoutDefaults,
             )
             val reparsedWithoutDefaults = Json.parseToJsonElement(encodedWithoutDefaults).jsonObject
