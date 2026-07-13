@@ -32,12 +32,12 @@ open class CborBacked(
 /**
  * Optional fields are backed as nullable type.
  * Example
- * ```val foo: String? by jsonProperty("foo")```
+ * ```val foo: String? by cborProperty("foo")```
  *
  * Required fields are backed as strict types
- * ```val bar: Bar by jsonProperty("bar_obj", CustomBarSerializer)```
+ * ```val bar: Bar by cborProperty("bar_obj", CustomBarSerializer)```
  */
-inline fun <reified V> jsonProperty(
+inline fun <reified V> cborProperty(
     key: String? = null,
     serializer: KSerializer<V> = serializer(),
 ): CborBackedProperty<V> =
@@ -49,19 +49,18 @@ inline fun <reified V> jsonProperty(
  * Serialization still emits the raw backing object unchanged. If defaults should be encoded,
  * construct or receive the backing object with those default fields already present.
  */
-
-inline fun <reified V> jsonProperty(
+inline fun <reified V> cborProperty(
     key: String? = null,
     defaultValue: V,
     serializer: KSerializer<V> = serializer(),
 ): CborBackedProperty<V> = backedProperty(key, defaultValue, serializer)
 
-inline fun <reified V> jsonSlice(serializer: KSerializer<V> = serializer()): CborBackedProperty<V> =
+inline fun <reified V> cborSlice(serializer: KSerializer<V> = serializer()): CborBackedProperty<V> =
     slice(serializer)
 
 /**
- * Returns the combined content of two JsonObjects.
- * If both inputs are zero returns the empty JsonObject
+ * Returns the combined content of two [CborMap]s.
+ * If both inputs are zero returns the empty [CborMap]
  */
 @OptIn(ExperimentalUnsignedTypes::class)
 @Throws(IllegalArgumentException::class)

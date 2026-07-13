@@ -60,8 +60,8 @@ inline fun <reified V> jsonSlice(serializer: KSerializer<V> = serializer()): Jso
     slice(serializer)
 
 /**
- * Returns the combined content of two JsonObjects.
- * If both inputs are zero returns the empty JsonObject
+ * Returns the combined content of two [JsonObject]s.
+ * If both inputs are zero returns the empty [JsonObject]
  */
 @Throws(IllegalArgumentException::class)
 fun JsonObject?.strictUnion(other: JsonObject?): JsonObject {
