@@ -16,7 +16,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(serialization("core"))
+            api(libs.kotlinx.serialization.core)
         }
     }
 }

@@ -4,10 +4,10 @@ plugins {
 }
 
 propigatorConventions {
-    android("at.asitplus.propigator.json")
+    android("at.asitplus.propigator.cbor")
     mavenPublish(
-        name = "Propigator for JSON",
-        description = "Typed properties over untamed JSON data"
+        name = "Propigator for CBOR",
+        description = "Typed properties over untamed CBOR data"
     )
 }
 
@@ -17,16 +17,13 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":common"))
-            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.serialization.cbor)
         }
         commonTest {
             kotlin.srcDir(project(":common").layout.projectDirectory.dir("src/commonTest/kotlin"))
         }
         commonTest.dependencies {
-            implementation(libs.josef)
-        }
-        jvmTest.dependencies {
-            implementation(libs.nimbusJoseJwt)
+            implementation(libs.cosef)
         }
     }
 }

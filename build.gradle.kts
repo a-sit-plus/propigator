@@ -52,6 +52,11 @@ val spdxHeaderSources = fileTree(rootDir) {
     exclude("docs/**", "repo/**", "**/build/**", ".gradle/**")
 }
 
+allprojects {
+    repositories {
+        mavenLocal ()
+    }
+}
 spotless {
     format("mainSourceHeaders") {
         target(spdxHeaderSources)

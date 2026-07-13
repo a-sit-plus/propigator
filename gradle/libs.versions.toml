@@ -1,5 +1,6 @@
 [versions]
 kotlin="2.3.20"
+serialization = "1.11.1-SNAPSHOT"
 testballoon = "1.0.0-K2.3.20"
 yamlkt = "0.13.0"
 asp="20260610"
@@ -11,11 +12,15 @@ indispensible = "3.21.0"
 
 [libraries]
 yamlkt = { module = "net.mamoe.yamlkt:yamlkt", version.ref = "yamlkt" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "serialization" }
 #for build logic conventions plugin, as it needs the artifact, not the plugin ID
 asp = { module = "at.asitplus.gradle:k2", version.ref = "asp" }
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 sbombastic = { module = "at.asitplus.gradle.sbombastic:at.asitplus.gradle.sbombastic.gradle.plugin", version.ref = "sbombastic" }
 josef = { module = "at.asitplus.signum:indispensable-josef", version.ref = "indispensible" }
+cosef = { module = "at.asitplus.signum:indispensable-cosef", version.ref = "indispensible" }
 nimbusJoseJwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus"}
 
 [plugins]

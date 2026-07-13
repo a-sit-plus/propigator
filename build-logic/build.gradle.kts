@@ -25,11 +25,7 @@ dependencies {
 }
 
 repositories {
-    mavenLocal {
-        content {
-            includeGroup("at.asitplus.gradle")
-        }
-    }
+    mavenLocal()
     maven {
         url = uri("https://raw.githubusercontent.com/a-sit-plus/gradle-conventions-plugin/mvn/repo")
         name = "aspConventions"
