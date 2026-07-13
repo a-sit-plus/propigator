@@ -54,14 +54,14 @@ Use `json` for `kotlinx-serialization-json` backed objects and `yaml` for yamlkt
 
 ## JSON Quick Start
 
-Define a wrapper around `JsonObjectBacked` and add typed properties with `jsonProperty()`.
+Define a wrapper around `JsonBacked` and add typed properties with `jsonProperty()`.
 
 ```kotlin
-@Serializable(with = PersonJsonObject.Serializer::class)
-class PersonJsonObject(
+@Serializable(with = PersonJson.Serializer::class)
+class PersonJson(
     backingObject: JsonObject,
     serialFormat: Json = Json.Default,
-) : JsonObjectBacked(backingObject, serialFormat) {
+) : JsonBacked(backingObject, serialFormat) {
     val id: String by jsonProperty()
     val name: String by jsonProperty()
     val active: Boolean by jsonProperty("is_active")
@@ -72,7 +72,7 @@ class PersonJsonObject(
         name
     }
 
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
+    object Serializer : KSerializer<PersonJson> by JsonBackedSerializerTemplate(::PersonJson)
 }
 ```
 
@@ -80,7 +80,7 @@ class PersonJsonObject(
 val json = Json.Default
 
 val person = json.decodeFromString(
-    PersonJsonObject.serializer(),
+    PersonJson.serializer(),
     """
     {
       "id": "42",
@@ -91,21 +91,21 @@ val person = json.decodeFromString(
     """.trimIndent()
 )
 
-val encoded = json.encodeToString(PersonJsonObject.serializer(), person)
+val encoded = json.encodeToString(PersonJson.serializer(), person)
 ```
 
 The encoded JSON still contains `futureField`.
 
 ## YAML Quick Start
 
-YAML uses the same pattern with `YamlObjectBacked` and `yamlProperty()`.
+YAML uses the same pattern with `YamlBacked` and `yamlProperty()`.
 
 ```kotlin
-@Serializable(with = ServiceYamlObject.Serializer::class)
-class ServiceYamlObject(
+@Serializable(with = ServiceYaml.Serializer::class)
+class ServiceYaml(
     backingObject: YamlMap,
     serialFormat: Yaml = Yaml.Default,
-) : YamlObjectBacked(backingObject, serialFormat) {
+) : YamlBacked(backingObject, serialFormat) {
     val id: String by yamlProperty()
     val endpoint: String by yamlProperty()
     val description: String? by yamlProperty()
@@ -115,8 +115,8 @@ class ServiceYamlObject(
         endpoint
     }
 
-    object Serializer : KSerializer<ServiceYamlObject> by
-        Yaml.Default.objectBackedSerializer(::ServiceYamlObject)
+    object Serializer : KSerializer<ServiceYaml> by
+        Yaml.Default.objectBackedSerializer(::ServiceYaml)
 }
 ```
 
@@ -124,7 +124,7 @@ class ServiceYamlObject(
 val yaml = Yaml.Default
 
 val service = yaml.decodeFromString(
-    ServiceYamlObject.serializer(),
+    ServiceYaml.serializer(),
     """
     id: payments
     endpoint: https://example.test/payments
@@ -132,7 +132,7 @@ val service = yaml.decodeFromString(
     """.trimIndent()
 )
 
-val encoded = yaml.encodeToString(ServiceYamlObject.serializer(), service)
+val encoded = yaml.encodeToString(ServiceYaml.serializer(), service)
 ```
 
 `x-vendor-option` is preserved.
@@ -182,11 +182,11 @@ data class PublicClaims(
     val aud: String,
 )
 
-@Serializable(with = ClaimsJsonObject.Serializer::class)
-class ClaimsJsonObject(
+@Serializable(with = ClaimsJson.Serializer::class)
+class ClaimsJson(
     backingObject: JsonObject,
     serialFormat: Json = Json.Default,
-) : JsonObjectBacked(backingObject, serialFormat) {
+) : JsonBacked(backingObject, serialFormat) {
     val claims: PublicClaims by jsonSlice()
     val nonce: String? by jsonProperty()
 
@@ -194,7 +194,7 @@ class ClaimsJsonObject(
         claims
     }
 
-    object Serializer : KSerializer<ClaimsJsonObject> by JsonObjectBackedSerializer(::ClaimsJsonObject)
+    object Serializer : KSerializer<ClaimsJson> by JsonBackedSerializerTemplate(::ClaimsJson)
 }
 ```
 
@@ -211,7 +211,7 @@ val foo: Foo by yamlSlice()
 Propigator is designed for parse-not-validate workflows: parse the raw object, expose the fields your workflow needs, and keep the rest untouched. Required delegated fields are checked when read:
 
 ```kotlin
-val person = json.decodeFromString(PersonJsonObject.serializer(), payload)
+val person = json.decodeFromString(PersonJson.serializer(), payload)
 
 // Missing "name" fails here, when the property is needed.
 println(person.name)
@@ -234,9 +234,9 @@ This is useful for open-ended formats such as JOSE, where one layer may need typ
 You can add semantic fields outside the nominal wrapper class:
 
 ```kotlin
-val PersonJsonObject.locale: String? by jsonProperty("locale")
+val PersonJson.locale: String? by jsonProperty("locale")
 
-val PersonJsonObject.displayLabel: String
+val PersonJson.displayLabel: String
     get() = locale?.let { "$name ($it)" } ?: name
 ```
 
@@ -253,9 +253,9 @@ For JSON, `backingObject` is a `JsonObject`; for YAML, it is a `YamlMap`. To cre
 Attach a serializer to each wrapper type:
 
 ```kotlin
-@Serializable(with = PersonJsonObject.Serializer::class)
-class PersonJsonObject(...) : JsonObjectBacked(...) {
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
+@Serializable(with = PersonJson.Serializer::class)
+class PersonJson(...) : JsonBacked(...) {
+    object Serializer : KSerializer<PersonJson> by JsonBackedSerializerTemplate(::PersonJson)
 }
 ```
 
@@ -266,7 +266,7 @@ Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor as `s
 ```kotlin
 private val personJson = Json { ignoreUnknownKeys = true }
 
-val person = personJson.decodeFromString<PersonJsonObject>(payload)
+val person = personJson.decodeFromString<PersonJson>(payload)
 ```
 
 YAMLKt does not expose the active `Yaml` instance through its decoder. The default serializer can
@@ -275,7 +275,7 @@ explicitly and use the same `Yaml` instance for both decoding and encoding:
 
 ```kotlin
 private val serviceYaml = Yaml { /* custom configuration */ }
-private val serviceSerializer = serviceYaml.objectBackedSerializer(::ServiceYamlObject)
+private val serviceSerializer = serviceYaml.objectBackedSerializer(::ServiceYaml)
 
 val service = serviceYaml.decodeFromString(serviceSerializer, payload)
 val encoded = serviceYaml.encodeToString(serviceSerializer, service)
