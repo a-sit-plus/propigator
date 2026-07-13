@@ -115,7 +115,8 @@ class ServiceYamlObject(
         endpoint
     }
 
-    object Serializer : KSerializer<ServiceYamlObject> by YamlObjectBackedSerializer(create = ::ServiceYamlObject)
+    object Serializer : KSerializer<ServiceYamlObject> by
+        Yaml.Default.objectBackedSerializer(::ServiceYamlObject)
 }
 ```
 
@@ -268,7 +269,17 @@ private val personJson = Json { ignoreUnknownKeys = true }
 val person = personJson.decodeFromString<PersonJsonObject>(payload)
 ```
 
-YAML-backed serializers instead receive their `Yaml` instance when the serializer is constructed.
+YAMLKt does not expose the active `Yaml` instance through its decoder. The default serializer can
+bind `Yaml.Default`, as in the quick start above. For custom configuration, bind the serializer
+explicitly and use the same `Yaml` instance for both decoding and encoding:
+
+```kotlin
+private val serviceYaml = Yaml { /* custom configuration */ }
+private val serviceSerializer = serviceYaml.objectBackedSerializer(::ServiceYamlObject)
+
+val service = serviceYaml.decodeFromString(serviceSerializer, payload)
+val encoded = serviceYaml.encodeToString(serviceSerializer, service)
+```
 
 Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
 

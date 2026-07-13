@@ -27,7 +27,7 @@ private class PersonYamlObject(
         super<ObjectBackedTestPerson>.validate()
     }
 
-    object Serializer : KSerializer<PersonYamlObject> by YamlObjectBackedSerializerTemplate(create = ::PersonYamlObject)
+    object Serializer : KSerializer<PersonYamlObject> by Yaml.Default.objectBackedSerializer(::PersonYamlObject)
 }
 
 private val PersonYamlObject.nickname: String? by yamlProperty("nick")
@@ -75,6 +75,26 @@ internal val YamlObjectBackedTest by matrixSuite {
 
             obj.readOnlyName shouldBe "Ada"
             obj.nickname shouldBe "countess"
+        }
+
+        "retain the Yaml instance bound to the serializer" {
+            val yaml = Yaml {
+                stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION
+            }
+            val serializer = yaml.objectBackedSerializer(::PersonYamlObject)
+            val decoded = yaml.decodeFromString(
+                serializer,
+                """
+                id: p-1
+                name: Ada
+                some_yaml_key: true
+                foo:
+                  bar: 2
+                  baz: eyz
+                """.trimIndent(),
+            )
+
+            (decoded.serialFormat === yaml) shouldBe true
         }
 
         "allow serialization when the object carries an equivalent Yaml configuration" {

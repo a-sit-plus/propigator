@@ -29,6 +29,19 @@ class YamlObjectBackedSerializerTemplate<T : YamlObjectBacked>(
     }
 }
 
+/**
+ * Creates an object-backed serializer bound to this [Yaml] instance.
+ *
+ * YAMLKt does not expose the originating [Yaml] through its decoder, so the returned serializer
+ * should be used with this same instance for both decoding and encoding.
+ */
+fun <T : YamlObjectBacked> Yaml.objectBackedSerializer(
+    create: (YamlMap, Yaml) -> T,
+): KSerializer<T> = YamlObjectBackedSerializerTemplate(
+    yaml = this,
+    create = create,
+)
+
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 private fun Yaml.hasSameConfigurationAs(other: Yaml): Boolean {
     val left = configuration
