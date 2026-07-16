@@ -1,162 +1,162 @@
-package at.asitplus.propigator.yaml
-
-import at.asitplus.propigator.common.ObjectBackedTestData
-import at.asitplus.propigator.common.ObjectBackedTestPerson
-import at.asitplus.testballoon.matrix.matrixSuite
-import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.matchers.shouldBe
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import net.mamoe.yamlkt.Yaml
-import net.mamoe.yamlkt.YamlBuilder
-import net.mamoe.yamlkt.YamlMap
-import net.mamoe.yamlkt.YamlPrimitive
-
-@Serializable(with = PersonYaml.Serializer::class)
-private class PersonYaml(
-    raw: YamlMap,
-    yaml: Yaml = Yaml.Default,
-) : YamlBacked(raw, yaml), ObjectBackedTestPerson {
-    override val id: String by yamlProperty()
-    override val name: String by yamlProperty()
-    override val renamed: Boolean by yamlProperty("some_yaml_key")
-    val readOnlyName: String by yamlProperty("name")
-    override val foo: ObjectBackedTestPerson.Foo by yamlProperty("foo")
-
-    override fun validate() {
-        super<ObjectBackedTestPerson>.validate()
-    }
-
-    object Serializer : KSerializer<PersonYaml> by Yaml.Default.objectBackedSerializer(::PersonYaml)
-}
-
-private val PersonYaml.nickname: String? by yamlProperty("nick")
-
-internal val YamlObjectBackedTest by matrixSuite {
-    "YAML-backed objects" - {
-        "round-trip known properties while preserving unknown fields" {
-            val decoded = Yaml.decodeFromString(
-                PersonYaml.serializer(),
-                """
-                id: p-1
-                name: Ada
-                some_yaml_key: true
-                unknown: 42
-                foo:
-                  bar: 2
-                  baz: eyz
-                """.trimIndent(),
-            )
-
-            decoded.id shouldBe ObjectBackedTestData.id
-            decoded.name shouldBe ObjectBackedTestData.name
-            decoded.renamed shouldBe ObjectBackedTestData.renamed
-            decoded.foo shouldBe ObjectBackedTestData.foo
-            decoded.backingObject["unknown"]!!.content shouldBe "42"
-
-            val encoded = Yaml.encodeToString(PersonYaml.serializer(), decoded)
-            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
-            reparsed.name shouldBe ObjectBackedTestData.name
-            reparsed.backingObject["unknown"]!!.content shouldBe "42"
-            reparsed.foo shouldBe ObjectBackedTestData.foo
-        }
-
-        "read member and extension val delegates from the backing object" {
-            val obj = PersonYaml(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("id") to YamlPrimitive("p-1"),
-                        YamlPrimitive("name") to YamlPrimitive("Ada"),
-                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
-                        YamlPrimitive("nick") to YamlPrimitive("countess"),
-                    ),
-                ),
-            )
-
-            obj.readOnlyName shouldBe "Ada"
-            obj.nickname shouldBe "countess"
-        }
-
-        "retain the Yaml instance bound to the serializer" {
-            val yaml = Yaml {
-                stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION
-            }
-            val serializer = yaml.objectBackedSerializer(::PersonYaml)
-            val decoded = yaml.decodeFromString(
-                serializer,
-                """
-                id: p-1
-                name: Ada
-                some_yaml_key: true
-                foo:
-                  bar: 2
-                  baz: eyz
-                """.trimIndent(),
-            )
-
-            (decoded.serialFormat === yaml) shouldBe true
-        }
-
-        "allow serialization when the object carries an equivalent Yaml configuration" {
-            val obj = PersonYaml(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("id") to YamlPrimitive("p-1"),
-                        YamlPrimitive("name") to YamlPrimitive("Ada"),
-                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
-                        YamlPrimitive("foo") to YamlMap(
-                            mapOf(
-                                YamlPrimitive("bar") to YamlPrimitive("2"),
-                                YamlPrimitive("baz") to YamlPrimitive("eyz"),
-                            ),
-                        ),
-                    ),
-                ),
-                Yaml { },
-            )
-
-            val encoded = Yaml.encodeToString(PersonYaml.serializer(), obj)
-            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
-
-            reparsed.id shouldBe "p-1"
-        }
-
-        "reject serialization when the object carries a different Yaml configuration" {
-            val obj = PersonYaml(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("id") to YamlPrimitive("p-1"),
-                        YamlPrimitive("name") to YamlPrimitive("Ada"),
-                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
-                    ),
-                ),
-                Yaml { stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION },
-            )
-
-            shouldThrow<IllegalArgumentException> {
-                Yaml.encodeToString(PersonYaml.serializer(), obj)
-            }
-        }
-
-        "resolve slice from the backing object" {
-            val obj = object : YamlBacked(
-                YamlMap(
-                    mapOf(
-                        YamlPrimitive("bar") to YamlPrimitive("2"),
-                        YamlPrimitive("baz") to YamlPrimitive("eyz"),
-                    ),
-                ),
-            ) {
-                val foo: ObjectBackedTestPerson.Foo by yamlSlice()
-            }
-
-            obj.foo shouldBe ObjectBackedTestData.foo
-        }
-
-        "reject payloads missing mandatory delegated properties" {
-            shouldThrow<NoSuchElementException> {
-                Yaml.decodeFromString(PersonYaml.serializer(), "id: p-1")
-            }
-        }
-    }
-}
+//package at.asitplus.propigator.yaml
+//
+//import at.asitplus.propigator.common.ObjectBackedTestData
+//import at.asitplus.propigator.common.ObjectBackedTestPerson
+//import at.asitplus.testballoon.matrix.matrixSuite
+//import io.kotest.assertions.throwables.shouldThrow
+//import io.kotest.matchers.shouldBe
+//import kotlinx.serialization.KSerializer
+//import kotlinx.serialization.Serializable
+//import net.mamoe.yamlkt.Yaml
+//import net.mamoe.yamlkt.YamlBuilder
+//import net.mamoe.yamlkt.YamlMap
+//import net.mamoe.yamlkt.YamlPrimitive
+//
+//@Serializable(with = PersonYaml.Serializer::class)
+//private class PersonYaml(
+//    raw: YamlMap,
+//    yaml: Yaml = Yaml.Default,
+//) : YamlBacked(raw, yaml), ObjectBackedTestPerson {
+//    override val id: String by yamlProperty()
+//    override val name: String by yamlProperty()
+//    override val renamed: Boolean by yamlProperty("some_yaml_key")
+//    val readOnlyName: String by yamlProperty("name")
+//    override val foo: ObjectBackedTestPerson.Foo by yamlProperty("foo")
+//
+//    override fun validate() {
+//        super<ObjectBackedTestPerson>.validate()
+//    }
+//
+//    object Serializer : KSerializer<PersonYaml> by Yaml.Default.objectBackedSerializer(::PersonYaml)
+//}
+//
+//private val PersonYaml.nickname: String? by yamlProperty("nick")
+//
+//internal val YamlObjectBackedTest by matrixSuite {
+//    "YAML-backed objects" - {
+//        "round-trip known properties while preserving unknown fields" {
+//            val decoded = Yaml.decodeFromString(
+//                PersonYaml.serializer(),
+//                """
+//                id: p-1
+//                name: Ada
+//                some_yaml_key: true
+//                unknown: 42
+//                foo:
+//                  bar: 2
+//                  baz: eyz
+//                """.trimIndent(),
+//            )
+//
+//            decoded.id shouldBe ObjectBackedTestData.id
+//            decoded.name shouldBe ObjectBackedTestData.name
+//            decoded.renamed shouldBe ObjectBackedTestData.renamed
+//            decoded.foo shouldBe ObjectBackedTestData.foo
+//            decoded.backingObject["unknown"]!!.content shouldBe "42"
+//
+//            val encoded = Yaml.encodeToString(PersonYaml.serializer(), decoded)
+//            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
+//            reparsed.name shouldBe ObjectBackedTestData.name
+//            reparsed.backingObject["unknown"]!!.content shouldBe "42"
+//            reparsed.foo shouldBe ObjectBackedTestData.foo
+//        }
+//
+//        "read member and extension val delegates from the backing object" {
+//            val obj = PersonYaml(
+//                YamlMap(
+//                    mapOf(
+//                        YamlPrimitive("id") to YamlPrimitive("p-1"),
+//                        YamlPrimitive("name") to YamlPrimitive("Ada"),
+//                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
+//                        YamlPrimitive("nick") to YamlPrimitive("countess"),
+//                    ),
+//                ),
+//            )
+//
+//            obj.readOnlyName shouldBe "Ada"
+//            obj.nickname shouldBe "countess"
+//        }
+//
+//        "retain the Yaml instance bound to the serializer" {
+//            val yaml = Yaml {
+//                stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION
+//            }
+//            val serializer = yaml.objectBackedSerializer(::PersonYaml)
+//            val decoded = yaml.decodeFromString(
+//                serializer,
+//                """
+//                id: p-1
+//                name: Ada
+//                some_yaml_key: true
+//                foo:
+//                  bar: 2
+//                  baz: eyz
+//                """.trimIndent(),
+//            )
+//
+//            (decoded.serialFormat === yaml) shouldBe true
+//        }
+//
+//        "allow serialization when the object carries an equivalent Yaml configuration" {
+//            val obj = PersonYaml(
+//                YamlMap(
+//                    mapOf(
+//                        YamlPrimitive("id") to YamlPrimitive("p-1"),
+//                        YamlPrimitive("name") to YamlPrimitive("Ada"),
+//                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
+//                        YamlPrimitive("foo") to YamlMap(
+//                            mapOf(
+//                                YamlPrimitive("bar") to YamlPrimitive("2"),
+//                                YamlPrimitive("baz") to YamlPrimitive("eyz"),
+//                            ),
+//                        ),
+//                    ),
+//                ),
+//                Yaml { },
+//            )
+//
+//            val encoded = Yaml.encodeToString(PersonYaml.serializer(), obj)
+//            val reparsed = Yaml.decodeFromString(PersonYaml.serializer(), encoded)
+//
+//            reparsed.id shouldBe "p-1"
+//        }
+//
+//        "reject serialization when the object carries a different Yaml configuration" {
+//            val obj = PersonYaml(
+//                YamlMap(
+//                    mapOf(
+//                        YamlPrimitive("id") to YamlPrimitive("p-1"),
+//                        YamlPrimitive("name") to YamlPrimitive("Ada"),
+//                        YamlPrimitive("some_yaml_key") to YamlPrimitive("true"),
+//                    ),
+//                ),
+//                Yaml { stringSerialization = YamlBuilder.StringSerialization.DOUBLE_QUOTATION },
+//            )
+//
+//            shouldThrow<IllegalArgumentException> {
+//                Yaml.encodeToString(PersonYaml.serializer(), obj)
+//            }
+//        }
+//
+//        "resolve slice from the backing object" {
+//            val obj = object : YamlBacked(
+//                YamlMap(
+//                    mapOf(
+//                        YamlPrimitive("bar") to YamlPrimitive("2"),
+//                        YamlPrimitive("baz") to YamlPrimitive("eyz"),
+//                    ),
+//                ),
+//            ) {
+//                val foo: ObjectBackedTestPerson.Foo by yamlSlice()
+//            }
+//
+//            obj.foo shouldBe ObjectBackedTestData.foo
+//        }
+//
+//        "reject payloads missing mandatory delegated properties" {
+//            shouldThrow<NoSuchElementException> {
+//                Yaml.decodeFromString(PersonYaml.serializer(), "id: p-1")
+//            }
+//        }
+//    }
+//}

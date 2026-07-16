@@ -16,10 +16,10 @@ import kotlin.properties.ReadOnlyProperty
 typealias YamlProperty<V> =
         ReadOnlyProperty<YamlBacked, V>
 
-open class YamlBacked(
-    override val backingObject: YamlMap,
-    override val serialFormat: Yaml = Yaml.Default,
-) : ObjectBacked() {
+interface YamlBacked : ObjectBacked {
+    override val backingObject: YamlMap
+    override val serialFormat: Yaml
+
     override fun isFormatNull(element: Any?): Boolean = element is YamlPrimitive && element.content == null
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
         backingObject[key]?.let {

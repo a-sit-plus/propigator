@@ -59,9 +59,9 @@ Define a wrapper around `JsonBacked` and add typed properties with `jsonProperty
 ```kotlin
 @Serializable(with = PersonJson.Serializer::class)
 class PersonJson(
-    backingObject: JsonObject,
-    serialFormat: Json = Json.Default,
-) : JsonBacked(backingObject, serialFormat) {
+    override val backingObject: JsonObject,
+    override val serialFormat: Json = Json.Default,
+) : JsonBacked {
     val id: String by jsonProperty()
     val name: String by jsonProperty()
     val active: Boolean by jsonProperty("is_active")
@@ -103,9 +103,9 @@ YAML uses the same pattern with `YamlBacked` and `yamlProperty()`.
 ```kotlin
 @Serializable(with = ServiceYaml.Serializer::class)
 class ServiceYaml(
-    backingObject: YamlMap,
-    serialFormat: Yaml = Yaml.Default,
-) : YamlBacked(backingObject, serialFormat) {
+    override val backingObject: YamlMap,
+    override val serialFormat: Yaml = Yaml.Default,
+) : YamlBacked {
     val id: String by yamlProperty()
     val endpoint: String by yamlProperty()
     val description: String? by yamlProperty()
@@ -184,9 +184,9 @@ data class PublicClaims(
 
 @Serializable(with = ClaimsJson.Serializer::class)
 class ClaimsJson(
-    backingObject: JsonObject,
-    serialFormat: Json = Json.Default,
-) : JsonBacked(backingObject, serialFormat) {
+    override val backingObject: JsonObject,
+    override val serialFormat: Json = Json.Default,
+) : JsonBacked {
     val claims: PublicClaims by jsonSlice()
     val nonce: String? by jsonProperty()
 
@@ -254,7 +254,10 @@ Attach a serializer to each wrapper type:
 
 ```kotlin
 @Serializable(with = PersonJson.Serializer::class)
-class PersonJson(...) : JsonBacked(...) {
+class PersonJson(
+    override val backingObject: JsonObject,
+    override val serialFormat: Json = Json.Default,
+) : JsonBacked {
     object Serializer : KSerializer<PersonJson> by JsonBackedSerializerTemplate(::PersonJson)
 }
 ```

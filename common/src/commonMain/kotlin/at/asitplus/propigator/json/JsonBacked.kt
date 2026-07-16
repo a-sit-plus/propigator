@@ -16,10 +16,10 @@ import kotlin.properties.ReadOnlyProperty
 typealias JsonProperty<V> =
     ReadOnlyProperty<JsonBacked, V>
 
-open class JsonBacked(
-    override val backingObject: JsonObject,
-    override val serialFormat: Json = Json.Default,
-) : ObjectBacked() {
+interface JsonBacked : ObjectBacked {
+    override val backingObject: JsonObject
+    override val serialFormat: Json
+
     override fun isFormatNull(element: Any?): Boolean = element is JsonNull
 
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =

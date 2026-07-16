@@ -16,10 +16,10 @@ import kotlin.properties.ReadOnlyProperty
 typealias CborBackedProperty<V> =
         ReadOnlyProperty<CborBacked, V>
 
-open class CborBacked(
-    override val backingObject: CborMap,
-    override val serialFormat: Cbor = Cbor.Default,
-) : ObjectBacked() {
+interface CborBacked : ObjectBacked {
+    override val backingObject: CborMap
+    override val serialFormat: Cbor
+
     override fun isFormatNull(element: Any?): Boolean = element is CborNull
 
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =

@@ -1,6 +1,7 @@
 [versions]
 kotlin="2.3.20"
 serialization = "1.11.1-SNAPSHOT"
+serialization-previous = "1.11.0"
 testballoon = "1.0.0-K2.3.20"
 yamlkt = "0.13.0"
 asp="20260610"
