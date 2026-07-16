@@ -1,33 +1,42 @@
 package at.asitplus.propigator.common
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
-internal interface ObjectBackedTestPerson {
-    val id: String
-    val name: String
-    val renamed: Boolean
-    val foo: Foo
+@Serializable
+data class AddressData(
+    val street: String,
+    val city: String,
+    val zipCode: Int,
+)
 
-    fun validate() {
-        id
-        name
-        foo
+object FancySerializer : KSerializer<String> {
+    override val descriptor: SerialDescriptor
+        get() = String.serializer().descriptor
+
+    override fun serialize(encoder: Encoder, value: String) {
+        encoder.encodeString(value.reversed())
     }
 
-    @Serializable
-    data class Foo(
-        val bar: Int,
-        val baz: String,
-    )
+    override fun deserialize(decoder: Decoder): String {
+        return decoder.decodeString().reversed()
+    }
 }
 
 @Serializable
-internal object ObjectBackedTestData : ObjectBackedTestPerson {
-    override val id: String = "p-1"
-    override val name: String = "Ada"
-    override val renamed: Boolean = true
-    override val foo: ObjectBackedTestPerson.Foo = ObjectBackedTestPerson.Foo(
-        bar = 2,
-        baz = "eyz",
-    )
-}
+data class PersonData(
+    val id: Int,
+    val name: String = "Bob",
+
+    @SerialName("is_cool")
+    val isCool: Boolean,
+
+    @SerialName("fancy")
+    @Serializable(with = FancySerializer::class)
+    val fancyString: String = "Fancy",
+)
