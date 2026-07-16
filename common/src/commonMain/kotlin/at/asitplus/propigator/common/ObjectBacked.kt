@@ -8,7 +8,7 @@ import kotlinx.serialization.SerialFormat
 
 interface ObjectBacked {
     val serialFormat: SerialFormat
-    val backingObject: Any
+//    val backingObject: Any
     fun isFormatNull(element: Any?): Boolean
     fun <V> getElement(key: String, serializer: KSerializer<V>): V?
     fun <S> getSlice(serializer: KSerializer<S>): S

@@ -17,7 +17,7 @@ typealias JsonProperty<V> =
     ReadOnlyProperty<JsonBacked, V>
 
 interface JsonBacked : ObjectBacked {
-    override val backingObject: JsonObject
+    val backingObject: JsonObject
     override val serialFormat: Json
 
     override fun isFormatNull(element: Any?): Boolean = element is JsonNull

@@ -17,7 +17,7 @@ typealias YamlProperty<V> =
         ReadOnlyProperty<YamlBacked, V>
 
 interface YamlBacked : ObjectBacked {
-    override val backingObject: YamlMap
+    val backingObject: YamlMap
     override val serialFormat: Yaml
 
     override fun isFormatNull(element: Any?): Boolean = element is YamlPrimitive && element.content == null

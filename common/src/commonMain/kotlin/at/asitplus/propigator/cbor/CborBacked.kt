@@ -17,7 +17,7 @@ typealias CborBackedProperty<V> =
         ReadOnlyProperty<CborBacked, V>
 
 interface CborBacked : ObjectBacked {
-    override val backingObject: CborMap
+    val backingObject: CborMap
     override val serialFormat: Cbor
 
     override fun isFormatNull(element: Any?): Boolean = element is CborNull
