@@ -4,7 +4,7 @@ plugins {
 
 
     alias(libs.plugins.asp)
-    alias(libs.plugins.sbombastic)
+//    alias(libs.plugins.sbombastic)
     alias(libs.plugins.spotless)
     kotlin("multiplatform") version kotlinVer apply false
     kotlin("plugin.serialization") version kotlinVer apply false
@@ -66,7 +66,7 @@ spotless {
         )
     }
 }
-
+/*
 tasks.named("spotlessCheck") {
     dependsOn(subprojects.map { "${it.path}:cyclonedxPublishedBom" })
-}
+}*/

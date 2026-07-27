@@ -32,5 +32,8 @@ includeBuild("build-logic")
 
 rootProject.name = "propigator"
 
-include(":common")
-include(":yaml")
+include(":core")
+include(":multi")
+include(":json")
+include(":cbor")
+include(":borson")

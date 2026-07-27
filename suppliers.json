@@ -56,18 +56,6 @@
   {
     "type": "mvn",
     "groups": [
-      "net.mamoe.yamlkt"
-    ],
-    "supplier": {
-      "name": "Him188",
-      "urls": [
-        "https://github.com/Him188/yamlkt"
-      ]
-    }
-  },
-  {
-    "type": "mvn",
-    "groups": [
       "org.slf4j"
     ],
     "supplier": {
