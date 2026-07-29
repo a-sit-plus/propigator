@@ -3,7 +3,6 @@ package at.asitplus.propigator.cbor
 import at.asitplus.propigator.common.validating
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.cbor.CborInteger
@@ -12,20 +11,17 @@ import kotlinx.serialization.cbor.CborString
 import kotlinx.serialization.cbor.decodeFromCborElement
 import kotlinx.serialization.cbor.encodeToCborElement
 
-@Serializable(with = CborCoreObj.Serializer::class)
+@Serializable(with = CborCoreObj.Companion::class)
 class CborCoreObj private constructor(
     backingObject: CborMap,
     serialFormat: Cbor,
 ) : CborBackedObject(backingObject, serialFormat) {
 
-    var aString: String by cborProperty()
-        private set
+    val aString: String by cborProperty()
 
-    var anInt: Int by cborProperty()
-        private set
+    val anInt: Int by cborProperty()
 
-    var nativeKeyValue: String by cborProperty(CborInteger(7L))
-        private set
+    val nativeKeyValue: String by cborProperty(CborInteger(7L))
 
     val defaultString: String by cborProperty(
         defaultValue = "default",
@@ -35,9 +31,7 @@ class CborCoreObj private constructor(
         defaultValue = null,
     )
 
-    object Serializer : KSerializer<CborCoreObj> by CborBackedSerializerTemplate(::CborCoreObj)
-
-    companion object {
+    companion object : CborBackedSerializerTemplate<CborCoreObj>(::CborCoreObj) {
         context(serialFormat: Cbor)
         operator fun invoke(
             aString: String,
@@ -45,9 +39,9 @@ class CborCoreObj private constructor(
             nativeKeyValue: String = "native key",
         ): CborCoreObj =
             CborCoreObj(CborMap(emptyMap()), serialFormat).validating {
-                this.aString = aString
-                this.anInt = anInt
-                this.nativeKeyValue = nativeKeyValue
+                initBackedProperty(CborCoreObj::aString, aString)
+                initBackedProperty(CborCoreObj::anInt, anInt)
+                initBackedProperty(CborCoreObj::nativeKeyValue, nativeKeyValue)
             }
     }
 }

@@ -5,66 +5,63 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.maps.shouldNotContainKey
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
-@Serializable(with = JoseHeader.Serializer::class)
+@Serializable(with = JoseHeader.Companion::class)
 open class JoseHeader protected constructor(
     backingObject: JsonObject,
     serialFormat: Json,
 ) : JsonBackedObject(backingObject, serialFormat) {
 
-    var algorithm: String by jsonProperty("alg")
-        private set
+    val algorithm: String by jsonProperty("alg")
 
-    var type: String? by jsonProperty("typ")
-        private set
+    open val type: String? by jsonProperty("typ")
 
-    var keyId: String? by jsonProperty("kid")
-        private set
+    val keyId: String? by jsonProperty("kid")
 
-    object Serializer : KSerializer<JoseHeader> by JsonBackedSerializerTemplate(::JoseHeader)
-
-    companion object {
+    companion object : JsonBackedSerializerTemplate<JoseHeader>(::JoseHeader) {
         context(serialFormat: Json)
         operator fun invoke(
             algorithm: String,
             type: String? = null,
             keyId: String? = null,
         ): JoseHeader = JoseHeader(JsonObject(emptyMap()), serialFormat).validating {
-            this.algorithm = algorithm
-            this.type = type
-            this.keyId = keyId
+            initBackedProperty(JoseHeader::algorithm, algorithm)
+            initBackedProperty(JoseHeader::type, type)
+            initBackedProperty(JoseHeader::keyId, keyId)
         }
     }
 }
 
-@Serializable(with = GromitAuthenticationHeader.Serializer::class)
+@Serializable(with = GromitAuthenticationHeader.Companion::class)
 class GromitAuthenticationHeader private constructor(
     backingObject: JsonObject,
     serialFormat: Json,
 ) : JoseHeader(backingObject, serialFormat) {
 
-    var numberOfChickens: Int by jsonProperty("number_of_chickens")
-        private set
+    override val type: String by jsonProperty("typ")
 
-    object Serializer : KSerializer<GromitAuthenticationHeader> by
-    JsonBackedSerializerTemplate(::GromitAuthenticationHeader)
+    val numberOfChickens: Int by jsonProperty("number_of_chickens")
 
-    companion object {
+    companion object :
+        JsonBackedSerializerTemplate<GromitAuthenticationHeader>(::GromitAuthenticationHeader) {
         context(serialFormat: Json)
         operator fun invoke(
             algorithm: String,
             numberOfChickens: Int,
-            type: String? = null,
+            type: String,
             keyId: String? = null,
-        ): GromitAuthenticationHeader {
-            val base = JoseHeader(algorithm, type, keyId)
-            return GromitAuthenticationHeader(base.backingObject, serialFormat).validating {
-                this.numberOfChickens = numberOfChickens
+        ): GromitAuthenticationHeader =
+            GromitAuthenticationHeader(JsonObject(emptyMap()), serialFormat).validating {
+                initBackedProperty(JoseHeader::algorithm, algorithm)
+                initBackedProperty(GromitAuthenticationHeader::type, type)
+                initBackedProperty(JoseHeader::keyId, keyId)
+                initBackedProperty(
+                    GromitAuthenticationHeader::numberOfChickens,
+                    numberOfChickens,
+                )
             }
-        }
     }
 }
 
@@ -106,13 +103,16 @@ val JoseHeaderApiTest by matrixSuite {
         json.encodeToJsonElement(gromit) shouldBe copiedBackingObject
     }
 
-    "reject a specialized header without its mandatory claim" {
+    "reject a specialized header that narrows an optional claim to mandatory" {
         val basic = with(json) {
             JoseHeader(algorithm = "ES256")
         }
+        val specializedBackingObject = JsonObject(
+            basic.backingObject + ("number_of_chickens" to JsonPrimitive(42))
+        )
 
         shouldThrow<NoSuchElementException> {
-            json.decodeFromJsonElement<GromitAuthenticationHeader>(basic.backingObject)
+            json.decodeFromJsonElement<GromitAuthenticationHeader>(specializedBackingObject)
         }
     }
 }

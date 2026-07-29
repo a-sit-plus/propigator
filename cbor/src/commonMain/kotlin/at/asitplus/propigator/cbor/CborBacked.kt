@@ -191,7 +191,7 @@ inline fun <reified V> cborProperty(
         cborStringKey(it, keyTags)
     }
 
-class CborBackedSerializerTemplate<T : CborBacked>(
+open class CborBackedSerializerTemplate<T : CborBacked>(
     private val create: (CborMap, Cbor) -> T,
 ) : KSerializer<T> {
     override val descriptor: SerialDescriptor = CborMap.serializer().descriptor

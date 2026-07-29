@@ -5,14 +5,12 @@ package at.asitplus.propigator.borson
 import at.asitplus.propigator.common.validating
 import at.asitplus.propigator.multi.MultiFormatBackedObject
 import at.asitplus.propigator.multi.MultiFormatBackedSerializerTemplate
-import at.asitplus.propigator.multi.MultiFormatSerializer
 import at.asitplus.propigator.multi.ObjectFormatAdapter
 import at.asitplus.propigator.multi.objectFormats
 import at.asitplus.propigator.multi.propertyKey
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialFormat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
@@ -33,29 +31,26 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 
-@Serializable(with = XoseHeader.Serializer::class)
+@Serializable(with = XoseHeader.Companion::class)
 open class XoseHeader protected constructor(
     backingObject: Map<*, *>,
     serialFormat: SerialFormat,
 ) : MultiFormatBackedObject(backingObject, serialFormat, JsonCborFormats) {
 
-    final var algorithm: String by multiFormatProperty(
+    final val algorithm: String by multiFormatProperty(
         JsonObjectFormat propertyKey "alg",
         CborMapFormat propertyKey CborInteger(1L),
     )
-        private set
 
-    final var type: String? by multiFormatProperty(
+    final val type: String? by multiFormatProperty(
         JsonObjectFormat propertyKey "typ",
         CborMapFormat propertyKey CborInteger(-65_538L),
     )
-        private set
 
-    final var keyId: String? by multiFormatProperty(
+    final val keyId: String? by multiFormatProperty(
         JsonObjectFormat propertyKey "kid",
         CborMapFormat propertyKey CborInteger(4L),
     )
-        private set
 
     val defaultIssuer: String by multiFormatProperty(
         JsonObjectFormat propertyKey "iss",
@@ -63,47 +58,40 @@ open class XoseHeader protected constructor(
         defaultValue = "Wallace",
     )
 
-    object Serializer : MultiFormatSerializer<XoseHeader> by
-        MultiFormatBackedSerializerTemplate(
-            JsonObject.serializer().descriptor,
-            JsonCborFormats,
-            ::XoseHeader,
-        )
-
-    companion object {
+    companion object : MultiFormatBackedSerializerTemplate<XoseHeader>(
+        JsonObject.serializer().descriptor,
+        JsonCborFormats,
+        ::XoseHeader,
+    ) {
         context(serialFormat: SerialFormat)
         operator fun invoke(
             algorithm: String,
             type: String? = null,
             keyId: String? = null,
         ): XoseHeader = XoseHeader(emptyMap<Any, Any>(), serialFormat).validating {
-            this.algorithm = algorithm
-            this.type = type
-            this.keyId = keyId
+            initBackedProperty(XoseHeader::algorithm, algorithm)
+            initBackedProperty(XoseHeader::type, type)
+            initBackedProperty(XoseHeader::keyId, keyId)
         }
     }
 }
 
-@Serializable(with = GromitAuthenticationHeader.Serializer::class)
+@Serializable(with = GromitAuthenticationHeader.Companion::class)
 class GromitAuthenticationHeader private constructor(
     backingObject: Map<*, *>,
     serialFormat: SerialFormat,
 ) : XoseHeader(backingObject, serialFormat) {
 
-    var numberOfChickens: Int by multiFormatProperty(
+    val numberOfChickens: Int by multiFormatProperty(
         JsonObjectFormat propertyKey "number_of_chickens",
         CborMapFormat propertyKey CborInteger(-65_537L),
     )
-        private set
 
-    object Serializer : MultiFormatSerializer<GromitAuthenticationHeader> by
-        MultiFormatBackedSerializerTemplate(
-            JsonObject.serializer().descriptor,
-            JsonCborFormats,
-            ::GromitAuthenticationHeader,
-        )
-
-    companion object {
+    companion object : MultiFormatBackedSerializerTemplate<GromitAuthenticationHeader>(
+        JsonObject.serializer().descriptor,
+        JsonCborFormats,
+        ::GromitAuthenticationHeader,
+    ) {
         context(serialFormat: SerialFormat)
         operator fun invoke(
             algorithm: String,
@@ -113,7 +101,10 @@ class GromitAuthenticationHeader private constructor(
         ): GromitAuthenticationHeader {
             val base = XoseHeader(algorithm, type, keyId)
             return GromitAuthenticationHeader(base.backingObject, serialFormat).validating {
-                this.numberOfChickens = numberOfChickens
+                initBackedProperty(
+                    GromitAuthenticationHeader::numberOfChickens,
+                    numberOfChickens,
+                )
             }
         }
     }

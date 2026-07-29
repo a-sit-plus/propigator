@@ -95,7 +95,7 @@ inline fun <reified V> jsonProperty(
 ): ReadOnlyProperty<JsonBacked, V> =
     backedProperty<JsonBacked, V>(key, serializer, defaultValue)
 
-class JsonBackedSerializerTemplate<T : JsonBacked>(
+open class JsonBackedSerializerTemplate<T : JsonBacked>(
     private val create: (JsonObject, Json) -> T,
 ) : KSerializer<T> {
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor

@@ -45,32 +45,28 @@ kotlin {
 ```
 
 ```kotlin
-@Serializable(with = Person.Serializer::class)
+@Serializable(with = Person.Companion::class)
 class Person private constructor(
     backingObject: JsonObject,
     serialFormat: Json,
 ) : JsonBackedObject(backingObject, serialFormat) {
 
-    var id: String by jsonProperty()
-        private set
+    val id: String by jsonProperty()
 
-    var displayName: String? by jsonProperty("display_name")
-        private set
+    val displayName: String? by jsonProperty("display_name")
 
-    object Serializer : KSerializer<Person> by JsonBackedSerializerTemplate(::Person)
-
-    companion object {
+    companion object : JsonBackedSerializerTemplate<Person>(::Person) {
         context(serialFormat: Json)
         operator fun invoke(id: String, displayName: String? = null): Person =
             Person(JsonObject(emptyMap()), serialFormat).validating {
-                this.id = id
-                this.displayName = displayName
+                initBackedProperty(Person::id, id)
+                initBackedProperty(Person::displayName, displayName)
             }
     }
 }
 ```
 
-The properties are publicly read-only while the companion can populate them. Non-nullable member delegates are validated automatically after deserialization and when `validating { ... }` completes.
+The properties are read-only. Their protected initializers may be consumed exactly once during controlled construction. Non-nullable member delegates are validated automatically after deserialization and when `validating { ... }` completes.
 
 Override `validate()` and call `super.validate()` only for additional semantic constraints.
 
@@ -102,19 +98,17 @@ kotlin {
 ```
 
 ```kotlin
-@Serializable(with = Claims.Serializer::class)
+@Serializable(with = Claims.Companion::class)
 class Claims private constructor(
     backingObject: CborMap,
     serialFormat: Cbor,
 ) : CborBackedObject(backingObject, serialFormat) {
 
-    var algorithm: String by cborProperty(CborInteger(1))
-        private set
+    val algorithm: String by cborProperty(CborInteger(1))
 
-    var issuer: String by cborProperty()
-        private set
+    val issuer: String by cborProperty()
 
-    object Serializer : KSerializer<Claims> by CborBackedSerializerTemplate(::Claims)
+    companion object : CborBackedSerializerTemplate<Claims>(::Claims)
 }
 ```
 
@@ -147,24 +141,22 @@ import at.asitplus.propigator.common.validating
 import at.asitplus.propigator.multi.*
 
 @OptIn(ExperimentalMultiFormatApi::class)
-@Serializable(with = XoseHeader.Serializer::class)
+@Serializable(with = XoseHeader.Companion::class)
 class XoseHeader private constructor(
     backingObject: Map<*, *>,
     serialFormat: SerialFormat,
 ) : MultiFormatBackedObject(backingObject, serialFormat, JsonCborFormats) {
 
-    var algorithm: String by multiFormatProperty(
+    val algorithm: String by multiFormatProperty(
         JsonObjectFormat propertyKey "alg",
         CborMapFormat propertyKey CborInteger(1),
     )
-        private set
 
-    object Serializer : MultiFormatSerializer<XoseHeader> by
-        MultiFormatBackedSerializerTemplate(
-            JsonObject.serializer().descriptor,
-            JsonCborFormats,
-            ::XoseHeader,
-        )
+    companion object : MultiFormatBackedSerializerTemplate<XoseHeader>(
+        JsonObject.serializer().descriptor,
+        JsonCborFormats,
+        ::XoseHeader,
+    )
 }
 ```
 

@@ -213,7 +213,7 @@ interface MultiFormatSerializer<T> : KSerializer<T> {
 }
 
 @ExperimentalMultiFormatApi
-class MultiFormatBackedSerializerTemplate<T : MultiFormatBackedObject>(
+open class MultiFormatBackedSerializerTemplate<T : MultiFormatBackedObject>(
     override val descriptor: SerialDescriptor,
     private val objectFormats: ObjectFormatSet,
     private val create: (Map<*, *>, SerialFormat) -> T,

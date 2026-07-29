@@ -3,8 +3,8 @@ package at.asitplus.propigator.json
 import at.asitplus.propigator.common.ObjectBacked
 import at.asitplus.propigator.common.validating
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -19,17 +19,15 @@ interface Core : ObjectBacked {
     val anInt: Int
 }
 
-@Serializable(with = CoreObj.Serializer::class)
+@Serializable(with = CoreObj.Companion::class)
 open class CoreObj protected constructor(
     backingObject: JsonObject,
     serialFormat: Json,
 ) : JsonBackedObject(backingObject, serialFormat), Core {
 
-    final override var aString: String by jsonProperty()
-        private set
+    final override val aString: String by jsonProperty()
 
-    final override var anInt: Int by jsonProperty()
-        private set
+    final override val anInt: Int by jsonProperty()
 
     val defaultString: String by jsonProperty(
         defaultValue = "default",
@@ -39,15 +37,21 @@ open class CoreObj protected constructor(
         defaultValue = null,
     )
 
-    object Serializer : KSerializer<CoreObj> by JsonBackedSerializerTemplate(::CoreObj)
-
-    companion object {
+    companion object : JsonBackedSerializerTemplate<CoreObj>(::CoreObj) {
         context(serialFormat: Json)
         operator fun invoke(aString: String, anInt: Int): CoreObj =
             CoreObj(JsonObject(emptyMap()), serialFormat).validating {
-                this.aString = aString
-                this.anInt = anInt
+                initBackedProperty(CoreObj::aString, aString)
+                initBackedProperty(CoreObj::anInt, anInt)
             }
+
+        context(serialFormat: Json)
+        fun initializeAStringTwice() {
+            CoreObj(JsonObject(emptyMap()), serialFormat).apply {
+                initBackedProperty(CoreObj::aString, "first")
+                initBackedProperty(CoreObj::aString, "second")
+            }
+        }
     }
 }
 
@@ -78,6 +82,12 @@ val CoreTest by matrixSuite {
         created.nullableDefault shouldBe null
         created.defaultFloat shouldBe 13.37f
         serialFormat.encodeToJsonElement(created) shouldBe expected
+    }
+
+    "backed properties can only be initialized once" {
+        shouldThrow<IllegalStateException> {
+            with(serialFormat) { CoreObj.initializeAStringTwice() }
+        }
     }
 
     "With Additional props" - {

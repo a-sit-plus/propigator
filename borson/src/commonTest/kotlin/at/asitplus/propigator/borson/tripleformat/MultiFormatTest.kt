@@ -23,7 +23,6 @@ import at.asitplus.propigator.common.validating
 import at.asitplus.propigator.multi.DecodedObjectBacking
 import at.asitplus.propigator.multi.MultiFormatBackedObject
 import at.asitplus.propigator.multi.MultiFormatBackedSerializerTemplate
-import at.asitplus.propigator.multi.MultiFormatSerializer
 import at.asitplus.propigator.multi.ObjectFormatAdapter
 import at.asitplus.propigator.multi.objectFormats
 import at.asitplus.propigator.multi.property
@@ -113,39 +112,34 @@ private data object Asn1DerMapFormat : ObjectFormatAdapter {
 
 private val formats = JsonCborFormats + objectFormats(Asn1DerMapFormat)
 
-@Serializable(with = TripleFormatObject.Serializer::class)
+@Serializable(with = TripleFormatObject.Companion::class)
 private class TripleFormatObject private constructor(
     backingObject: Map<*, *>,
     serialFormat: SerialFormat,
 ) : MultiFormatBackedObject(backingObject, serialFormat, formats) {
 
-    var name: String by multiFormatProperty(
+    val name: String by multiFormatProperty(
         JsonObjectFormat propertyKey "name",
         CborMapFormat propertyKey CborInteger(1L),
         Asn1DerMapFormat propertyKey Asn1.Int(1),
     )
-        private set
 
-    var count: Int by multiFormatProperty(
+    val count: Int by multiFormatProperty(
         JsonObjectFormat propertyKey "count",
         CborMapFormat propertyKey CborInteger(2L),
         Asn1DerMapFormat.property(Asn1.Int(2), IntAsAsn1RealSerializer),
     )
-        private set
 
-    object Serializer : MultiFormatSerializer<TripleFormatObject> by
-        MultiFormatBackedSerializerTemplate(
-            JsonObject.serializer().descriptor,
-            formats,
-            ::TripleFormatObject,
-        )
-
-    companion object {
+    companion object : MultiFormatBackedSerializerTemplate<TripleFormatObject>(
+        JsonObject.serializer().descriptor,
+        formats,
+        ::TripleFormatObject,
+    ) {
         context(serialFormat: SerialFormat)
         operator fun invoke(name: String, count: Int): TripleFormatObject =
             TripleFormatObject(emptyMap<Any, Any>(), serialFormat).validating {
-                this.name = name
-                this.count = count
+                initBackedProperty(TripleFormatObject::name, name)
+                initBackedProperty(TripleFormatObject::count, count)
             }
     }
 }
@@ -157,9 +151,9 @@ internal val TripleFormatTest by matrixSuite {
 
     "selects each format descriptor" {
         formats.adapters.size shouldBe 3
-        TripleFormatObject.Serializer.descriptor shouldBe JsonObjectFormat.descriptor
-        TripleFormatObject.Serializer.serializerFor(cbor).descriptor shouldBe CborMapFormat.descriptor
-        TripleFormatObject.Serializer.serializerFor(der).descriptor shouldBe Asn1DerMapFormat.descriptor
+        TripleFormatObject.descriptor shouldBe JsonObjectFormat.descriptor
+        TripleFormatObject.serializerFor(cbor).descriptor shouldBe CborMapFormat.descriptor
+        TripleFormatObject.serializerFor(der).descriptor shouldBe Asn1DerMapFormat.descriptor
     }
 
     "round-trips JSON, CBOR, and DER with a DER-specific property serializer" {
@@ -174,7 +168,7 @@ internal val TripleFormatTest by matrixSuite {
         )
         val cborValue = with(cbor) { TripleFormatObject("Gromit", 23) }
         cbor.encodeToCborElement(
-            TripleFormatObject.Serializer.serializerFor(cbor),
+            TripleFormatObject.serializerFor(cbor),
             cborValue,
         ) shouldBe cborExpected
 
@@ -182,7 +176,7 @@ internal val TripleFormatTest by matrixSuite {
             Asn1.Int(1) to Asn1.Utf8String("Gromit"),
             Asn1.Int(2) to Asn1.Real(23.0),
         )
-        val derSerializer = TripleFormatObject.Serializer.serializerFor(der)
+        val derSerializer = TripleFormatObject.serializerFor(der)
         val derValue = with(der) { TripleFormatObject("Gromit", 23) }
         derValue.backingObject shouldBe derExpected
         der.decodeFromByteArray(
@@ -194,7 +188,7 @@ internal val TripleFormatTest by matrixSuite {
     "rejects a mismatched descriptor and missing required values" {
         val jsonValue = with(json) { TripleFormatObject("Gromit", 23) }
         shouldThrow<IllegalArgumentException> {
-            json.encodeToJsonElement(TripleFormatObject.Serializer.serializerFor(der), jsonValue)
+            json.encodeToJsonElement(TripleFormatObject.serializerFor(der), jsonValue)
         }
         shouldThrow<NoSuchElementException> {
             json.decodeFromJsonElement<TripleFormatObject>(
@@ -208,7 +202,7 @@ internal val TripleFormatTest by matrixSuite {
         }
         shouldThrow<SerializationException> {
             der.decodeFromByteArray(
-                TripleFormatObject.Serializer.serializerFor(der),
+                TripleFormatObject.serializerFor(der),
                 der.encodeToByteArray(
                     asn1ObjectSerializer,
                     mapOf(Asn1.Int(1) to Asn1.Utf8String("Gromit")),

@@ -8,6 +8,7 @@ import kotlinx.serialization.SerialFormat
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
 
 interface ObjectBacked {
     val serialFormat: SerialFormat
@@ -20,10 +21,18 @@ interface ObjectBacked {
 
 abstract class ObjectBackedObject<K> : ObjectBacked {
     private val requiredPropertyChecks = mutableListOf<() -> Unit>()
+    private val propertyInitializers = mutableMapOf<String, (Any?) -> Unit>()
 
     protected abstract fun keyFromPropertyName(name: String): K
     protected abstract fun <V> readElement(key: K, serializer: KSerializer<V>): V?
     protected abstract fun <V> writeElement(key: K, serializer: KSerializer<V>, value: V)
+
+    /** Initializes a delegated property exactly once. */
+    protected fun <V> initBackedProperty(property: KProperty1<*, V>, value: V) {
+        val initializer = propertyInitializers.remove(property.name)
+            ?: error("Backed property '${property.name}' is not available for initialization")
+        initializer(value)
+    }
 
     protected inline fun <reified V> backedProperty(
         key: K? = null,
@@ -70,6 +79,10 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
     ) : ReadWriteProperty<Any?, V> {
         operator fun provideDelegate(thisRef: Any?, property: KProperty<*>): BackedProperty<V> {
             val actualKey = key ?: defaultKey(property.name)
+            propertyInitializers[property.name] = { value ->
+                @Suppress("UNCHECKED_CAST")
+                writeElement(actualKey, serializer, value as V)
+            }
             if (!serializer.descriptor.isNullable) {
                 requiredPropertyChecks += { readValue(actualKey) }
             }
