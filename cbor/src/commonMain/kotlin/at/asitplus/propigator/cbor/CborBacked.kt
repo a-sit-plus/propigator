@@ -52,6 +52,12 @@ abstract class CborBackedObject(
     ): BackedProperty<V> = backedProperty(key, serializer)
 
     protected inline fun <reified V> cborProperty(
+        key: CborElement? = null,
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+    ): BackedProperty<V> = backedProperty(key, serializer, defaultValue)
+
+    protected inline fun <reified V> cborProperty(
         key: String,
         serializer: KSerializer<V> = serializer(),
         keyTags: ULongArray = ulongArrayOf(),
@@ -59,10 +65,25 @@ abstract class CborBackedObject(
         backedProperty(cborStringKey(key, keyTags), serializer)
 
     protected inline fun <reified V> cborProperty(
+        key: String,
+        serializer: KSerializer<V> = serializer(),
+        keyTags: ULongArray = ulongArrayOf(),
+        defaultValue: V,
+    ): BackedProperty<V> =
+        backedProperty(cborStringKey(key, keyTags), serializer, defaultValue)
+
+    protected inline fun <reified V> cborProperty(
         keyTags: ULongArray,
         serializer: KSerializer<V> = serializer(),
     ): BackedProperty<V> =
         backedProperty(serializer) { cborStringKey(it, keyTags) }
+
+    protected inline fun <reified V> cborProperty(
+        keyTags: ULongArray,
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+    ): BackedProperty<V> =
+        backedProperty(serializer, defaultValue) { cborStringKey(it, keyTags) }
 
     protected final override fun keyFromPropertyName(name: String): CborElement = CborString(name)
 
@@ -89,14 +110,24 @@ internal fun cborStringKey(name: String, tags: ULongArray): CborString =
 internal fun <V> createCborBackedProperty(
     key: CborElement?,
     serializer: KSerializer<V>,
+    defaultValue: (() -> V)?,
     keyFromPropertyName: (String) -> CborElement = { CborString(it) },
 ): ReadOnlyProperty<CborBacked, V> = ReadOnlyProperty { owner, property ->
     val actualKey = key ?: keyFromPropertyName(property.name)
-    owner.getElement(actualKey, serializer)
-        ?: cborMissingValue(actualKey, serializer)
+    val element = owner.getElement(actualKey, serializer)
+    if (element == null || owner.isFormatNull(element)) {
+        cborMissingValue(actualKey, serializer, defaultValue)
+    } else {
+        element
+    }
 }
 
-private fun <V> cborMissingValue(key: CborElement, serializer: KSerializer<V>): V {
+private fun <V> cborMissingValue(
+    key: CborElement,
+    serializer: KSerializer<V>,
+    defaultValue: (() -> V)?,
+): V {
+    if (defaultValue != null) return defaultValue()
     if (serializer.descriptor.isNullable) {
         @Suppress("UNCHECKED_CAST")
         return null as V
@@ -120,20 +151,48 @@ inline fun <reified V> cborProperty(
     key: CborElement? = null,
     serializer: KSerializer<V> = serializer(),
 ): CborBackedProperty<V> =
-    createCborBackedProperty(key, serializer)
+    createCborBackedProperty(key, serializer, null)
+
+inline fun <reified V> cborProperty(
+    key: CborElement? = null,
+    serializer: KSerializer<V> = serializer(),
+    defaultValue: V,
+): CborBackedProperty<V> =
+    createCborBackedProperty(key, serializer, defaultValue = { defaultValue })
 
 inline fun <reified V> cborProperty(
     key: String,
     serializer: KSerializer<V> = serializer(),
     keyTags: ULongArray = ulongArrayOf(),
 ): CborBackedProperty<V> =
-    createCborBackedProperty(cborStringKey(key, keyTags), serializer)
+    createCborBackedProperty(cborStringKey(key, keyTags), serializer, null)
+
+inline fun <reified V> cborProperty(
+    key: String,
+    serializer: KSerializer<V> = serializer(),
+    keyTags: ULongArray = ulongArrayOf(),
+    defaultValue: V,
+): CborBackedProperty<V> =
+    createCborBackedProperty(
+        cborStringKey(key, keyTags),
+        serializer,
+        defaultValue = { defaultValue },
+    )
 
 inline fun <reified V> cborProperty(
     keyTags: ULongArray,
     serializer: KSerializer<V> = serializer(),
 ): CborBackedProperty<V> =
-    createCborBackedProperty(null, serializer) { cborStringKey(it, keyTags) }
+    createCborBackedProperty(null, serializer, null) { cborStringKey(it, keyTags) }
+
+inline fun <reified V> cborProperty(
+    keyTags: ULongArray,
+    serializer: KSerializer<V> = serializer(),
+    defaultValue: V,
+): CborBackedProperty<V> =
+    createCborBackedProperty(null, serializer, { defaultValue }) {
+        cborStringKey(it, keyTags)
+    }
 
 class CborBackedSerializerTemplate<T : CborBacked>(
     private val create: (CborMap, Cbor) -> T,

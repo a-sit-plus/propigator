@@ -55,6 +55,12 @@ abstract class JsonBackedObject(
         serializer: KSerializer<V> = serializer(),
     ): BackedProperty<V> = backedProperty(key, serializer)
 
+    protected inline fun <reified V> jsonProperty(
+        key: String? = null,
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+    ): BackedProperty<V> = backedProperty(key, serializer, defaultValue)
+
     protected final override fun keyFromPropertyName(name: String): String = name
 
     protected final override fun <V> readElement(key: String, serializer: KSerializer<V>): V? =
@@ -83,6 +89,13 @@ inline fun <reified V> jsonProperty(
     serializer: KSerializer<V> = serializer(),
 ): JsonProperty<V> =
     backedProperty<JsonBacked, V>(key, serializer)
+
+inline fun <reified V> jsonProperty(
+    key: String? = null,
+    serializer: KSerializer<V> = serializer(),
+    defaultValue: V,
+): JsonProperty<V> =
+    backedProperty<JsonBacked, V>(key, serializer, defaultValue)
 
 class JsonBackedSerializerTemplate<T : JsonBacked>(
     private val create: (JsonObject, Json) -> T,

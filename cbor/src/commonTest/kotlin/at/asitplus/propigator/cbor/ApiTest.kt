@@ -27,6 +27,14 @@ class CborCoreObj private constructor(
     var nativeKeyValue: String by cborProperty(CborInteger(7L))
         private set
 
+    val defaultString: String by cborProperty(
+        defaultValue = "default",
+    )
+
+    val nullableDefault: String? by cborProperty(
+        defaultValue = null,
+    )
+
     object Serializer : KSerializer<CborCoreObj> by CborBackedSerializerTemplate(::CborCoreObj)
 
     companion object {
@@ -49,6 +57,9 @@ private val complexCborKey = CborMap(
 )
 
 val CborCoreObj.integerKey: String by cborProperty(CborInteger(42L))
+val CborCoreObj.defaultInteger: Int by cborProperty(
+    defaultValue = 23,
+)
 val CborCoreObj.complexKey: String by cborProperty(complexCborKey)
 val CborCoreObj.taggedPropertyName: String by cborProperty(keyTags = ulongArrayOf(100u))
 val CborCoreObj.taggedWireName: String by cborProperty(
@@ -73,6 +84,7 @@ val CborCoreTest by matrixSuite {
                 complexCborKey to CborString("complex key"),
                 CborString("taggedPropertyName", 100u) to CborString("derived tagged key"),
                 CborString("wire_name", 200u) to CborString("renamed tagged key"),
+                CborString("defaultString") to CborString("from wire"),
             ),
             created.backingObject.tags,
         )
@@ -81,6 +93,9 @@ val CborCoreTest by matrixSuite {
         decoded.aString shouldBe "some string"
         decoded.anInt shouldBe 1337
         decoded.nativeKeyValue shouldBe "native key"
+        decoded.defaultString shouldBe "from wire"
+        decoded.nullableDefault shouldBe null
+        decoded.defaultInteger shouldBe 23
         decoded.integerKey shouldBe "integer key"
         decoded.complexKey shouldBe "complex key"
         decoded.taggedPropertyName shouldBe "derived tagged key"

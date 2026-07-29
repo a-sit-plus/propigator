@@ -166,7 +166,26 @@ abstract class MultiFormatBackedObject(
         val serializers = bindings.mapNotNull { binding ->
             (binding as? ObjectFormatProperty<*>)?.let { it.formatId to it.serializer }
         }.toMap()
-        return backedProperty(serializer) { MultiFormatKey(it, aliases, serializers) }
+        return backedProperty(serializer) {
+            MultiFormatKey(it, aliases, serializers)
+        }
+    }
+
+    protected inline fun <reified V> multiFormatProperty(
+        vararg bindings: ObjectFormatPropertyBinding<V>,
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+    ): BackedProperty<V> {
+        require(bindings.map { it.formatId }.distinct().size == bindings.size) {
+            "A property may define only one binding per format"
+        }
+        val aliases = bindings.associate { it.formatId to it.key }
+        val serializers = bindings.mapNotNull { binding ->
+            (binding as? ObjectFormatProperty<*>)?.let { it.formatId to it.serializer }
+        }.toMap()
+        return backedProperty(serializer, defaultValue) {
+            MultiFormatKey(it, aliases, serializers)
+        }
     }
 
     final override fun isFormatNull(element: Any?): Boolean =

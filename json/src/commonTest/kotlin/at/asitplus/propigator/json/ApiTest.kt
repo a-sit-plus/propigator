@@ -31,6 +31,14 @@ open class CoreObj protected constructor(
     final override var anInt: Int by jsonProperty()
         private set
 
+    val defaultString: String by jsonProperty(
+        defaultValue = "default",
+    )
+
+    val nullableDefault: String? by jsonProperty(
+        defaultValue = null,
+    )
+
     object Serializer : KSerializer<CoreObj> by JsonBackedSerializerTemplate(::CoreObj)
 
     companion object {
@@ -44,6 +52,9 @@ open class CoreObj protected constructor(
 }
 
 val CoreObj.aFloat: Float by jsonProperty("aFloat")
+val CoreObj.defaultFloat: Float by jsonProperty(
+    defaultValue = 13.37f,
+)
 
 val CoreTest by matrixSuite {
     val serialFormat = Json {
@@ -63,6 +74,9 @@ val CoreTest by matrixSuite {
         )
 
         created.backingObject shouldBe expected
+        created.defaultString shouldBe "default"
+        created.nullableDefault shouldBe null
+        created.defaultFloat shouldBe 13.37f
         serialFormat.encodeToJsonElement(created) shouldBe expected
     }
 
@@ -72,6 +86,7 @@ val CoreTest by matrixSuite {
                 "aString" to JsonPrimitive("some string"),
                 "anInt" to JsonPrimitive(1337),
                 "aFloat" to JsonPrimitive(13.37f),
+                "defaultString" to JsonPrimitive("from wire"),
             )
         )
 
@@ -79,6 +94,7 @@ val CoreTest by matrixSuite {
             val deserialized = serialFormat.decodeFromJsonElement<CoreObj>(floating)
             deserialized.backingObject shouldBe floating
             deserialized.aFloat shouldBe floating["aFloat"]!!.jsonPrimitive.float
+            deserialized.defaultString shouldBe "from wire"
             serialFormat.encodeToJsonElement(deserialized) shouldBe floating
         }
     }

@@ -6,8 +6,12 @@ package at.asitplus.propigator.common
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialFormat
 import kotlinx.serialization.serializer
+import kotlin.jvm.JvmInline
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+
+@JvmInline
+private value class ValueContainer<out V>(val value: V)
 
 interface ObjectBacked {
     val serialFormat: SerialFormat
@@ -32,22 +36,46 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
     ): BackedProperty<V> = createMutableBackedProperty(key, serializer)
 
     protected inline fun <reified V> backedProperty(
+        key: K? = null,
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+    ): BackedProperty<V> =
+        createMutableBackedProperty(key, serializer, defaultValue = { defaultValue })
+
+    protected inline fun <reified V> backedProperty(
         serializer: KSerializer<V> = serializer(),
         noinline keyFromPropertyName: (String) -> K,
     ): BackedProperty<V> =
-        createMutableBackedProperty(null, serializer, keyFromPropertyName)
+        createMutableBackedProperty(null, serializer, null, keyFromPropertyName)
+
+    protected inline fun <reified V> backedProperty(
+        serializer: KSerializer<V> = serializer(),
+        defaultValue: V,
+        noinline keyFromPropertyName: (String) -> K,
+    ): BackedProperty<V> =
+        createMutableBackedProperty(
+            null,
+            serializer,
+            { defaultValue },
+            keyFromPropertyName,
+        )
 
     protected fun <V> createMutableBackedProperty(
         key: K?,
         serializer: KSerializer<V>,
+        defaultValue: (() -> V)? = null,
         defaultKey: (String) -> K = ::keyFromPropertyName,
-    ): BackedProperty<V> = BackedProperty(key, serializer, defaultKey)
+    ): BackedProperty<V> = BackedProperty(key, serializer, defaultKey, defaultValue)
 
     protected inner class BackedProperty<V>(
         private val key: K?,
         private val serializer: KSerializer<V>,
         private val defaultKey: (String) -> K,
+        defaultValue: (() -> V)?,
     ) : ReadWriteProperty<Any?, V> {
+        private val defaultValue: ValueContainer<V>? =
+            defaultValue?.let { ValueContainer(it()) }
+
         operator fun provideDelegate(thisRef: Any?, property: KProperty<*>): BackedProperty<V> {
             val actualKey = key ?: defaultKey(property.name)
             if (!serializer.descriptor.isNullable) {
@@ -67,10 +95,14 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
 
         private fun readValue(actualKey: K): V {
             val element: V = readElement(actualKey, serializer)
-                ?: return missingValue(actualKey.toString(), serializer)
-            if (isFormatNull(element)) return missingValue(actualKey.toString(), serializer)
+                ?: return defaultOrMissing(actualKey)
+            if (isFormatNull(element)) return defaultOrMissing(actualKey)
             return element
         }
+
+        private fun defaultOrMissing(actualKey: K): V =
+            if (defaultValue != null) defaultValue.value
+            else missingValue(actualKey.toString(), serializer)
     }
 
     override fun validate() {

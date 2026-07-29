@@ -55,6 +55,12 @@ open class XoseHeader protected constructor(
     )
         private set
 
+    val defaultIssuer: String by multiFormatProperty(
+        JsonObjectFormat propertyKey "iss",
+        CborMapFormat propertyKey CborInteger(-65_539L),
+        defaultValue = "Wallace",
+    )
+
     object Serializer : MultiFormatSerializer<XoseHeader> by
         MultiFormatBackedSerializerTemplate(
             JsonObject.serializer().descriptor,
@@ -150,6 +156,7 @@ internal val MultiFormatTest by matrixSuite {
         )
 
         header.backingObject shouldBe expected
+        header.defaultIssuer shouldBe "Wallace"
         json.encodeToJsonElement(header) shouldBe expected
     }
 
@@ -167,6 +174,7 @@ internal val MultiFormatTest by matrixSuite {
         )
 
         header.backingObject shouldBe expected
+        header.defaultIssuer shouldBe "Wallace"
         cbor.encodeToCborElement(header) shouldBe expected
     }
 
@@ -176,11 +184,15 @@ internal val MultiFormatTest by matrixSuite {
             val copied = JsonObject(
                 base.backingObject.map { (key, value) ->
                     key as String to value as JsonElement
-                }.toMap() + ("number_of_chickens" to JsonPrimitive(42))
+                }.toMap() + mapOf(
+                    "number_of_chickens" to JsonPrimitive(42),
+                    "iss" to JsonPrimitive("Gromit"),
+                )
             )
             val gromit = json.decodeFromJsonElement<GromitAuthenticationHeader>(copied)
 
             gromit.numberOfChickens shouldBe 42
+            gromit.defaultIssuer shouldBe "Gromit"
             json.encodeToJsonElement(gromit) shouldBe copied
         }
 
@@ -194,6 +206,7 @@ internal val MultiFormatTest by matrixSuite {
                     key as CborElement to value as CborElement
                 }.toMap() + mapOf(
                     CborInteger(-65_537L) to CborInteger(42L),
+                    CborInteger(-65_539L) to CborString("Gromit"),
                     unknownComplexKey to CborString("unknown but preserved"),
                 ),
                 listOf(100u),
@@ -201,6 +214,7 @@ internal val MultiFormatTest by matrixSuite {
             val gromit = cbor.decodeFromCborElement<GromitAuthenticationHeader>(copied)
 
             gromit.numberOfChickens shouldBe 42
+            gromit.defaultIssuer shouldBe "Gromit"
             cbor.encodeToCborElement(gromit) shouldBe copied
         }
     }
