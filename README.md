@@ -74,6 +74,12 @@ The properties are publicly read-only while the companion can populate them. Non
 
 Override `validate()` and call `super.validate()` only for additional semantic constraints.
 
+Defaults are read without changing the backing object or serialized output:
+
+```kotlin
+val locale: String by jsonProperty(defaultValue = "en")
+```
+
 Downstream modules can add lazy, read-only views without changing the base type:
 
 ```kotlin
@@ -113,28 +119,6 @@ class Claims private constructor(
 ```
 
 The canonical key type is `CborElement`, so integer, tagged, and complex keys remain native CBOR values. String-key and tagged-string overloads cover the common cases.
-
-## JSON and CBOR through interfaces
-
-The simplest shared API is an ordinary interface with one native implementation per format:
-
-```kotlin
-interface XoseHeader {
-    val algorithm: String
-}
-
-class JoseHeader(...) : JsonBackedObject(...), XoseHeader {
-    override var algorithm: String by jsonProperty("alg")
-        private set
-}
-
-class CoseHeader(...) : CborBackedObject(...), XoseHeader {
-    override var algorithm: String by cborProperty(CborInteger(1))
-        private set
-}
-```
-
-Business logic targets `XoseHeader`; each implementation keeps its native serializer, descriptor, keys, and property serializers.
 
 ## Experimental integrated multi-format support
 

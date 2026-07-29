@@ -17,9 +17,6 @@ internal fun <O : ObjectBacked, V> createBackedProperty(
         val actualKey = key ?: property.name
         val element: V = thisRef.getElement(actualKey, serializer)
             ?: return@ReadOnlyProperty missingValue(actualKey, serializer, defaultValue)
-        if (thisRef.isFormatNull(element)) {
-            return@ReadOnlyProperty missingValue(actualKey, serializer, defaultValue)
-        }
         element
     }
 

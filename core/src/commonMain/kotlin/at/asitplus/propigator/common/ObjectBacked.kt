@@ -6,17 +6,12 @@ package at.asitplus.propigator.common
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialFormat
 import kotlinx.serialization.serializer
-import kotlin.jvm.JvmInline
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-
-@JvmInline
-private value class ValueContainer<out V>(val value: V)
 
 interface ObjectBacked {
     val serialFormat: SerialFormat
 
-    fun isFormatNull(element: Any?): Boolean
     fun <V> getElement(key: String, serializer: KSerializer<V>): V?
 
     /** Validates required delegated properties. Override and call `super` for semantic checks. */
@@ -71,11 +66,8 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
         private val key: K?,
         private val serializer: KSerializer<V>,
         private val defaultKey: (String) -> K,
-        defaultValue: (() -> V)?,
+        private val defaultValue: (() -> V)?,
     ) : ReadWriteProperty<Any?, V> {
-        private val defaultValue: ValueContainer<V>? =
-            defaultValue?.let { ValueContainer(it()) }
-
         operator fun provideDelegate(thisRef: Any?, property: KProperty<*>): BackedProperty<V> {
             val actualKey = key ?: defaultKey(property.name)
             if (!serializer.descriptor.isNullable) {
@@ -94,14 +86,11 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
         }
 
         private fun readValue(actualKey: K): V {
-            val element: V = readElement(actualKey, serializer)
-                ?: return defaultOrMissing(actualKey)
-            if (isFormatNull(element)) return defaultOrMissing(actualKey)
-            return element
+            return readElement(actualKey, serializer) ?: defaultOrMissing(actualKey)
         }
 
         private fun defaultOrMissing(actualKey: K): V =
-            if (defaultValue != null) defaultValue.value
+            if (defaultValue != null) defaultValue()
             else missingValue(actualKey.toString(), serializer)
     }
 

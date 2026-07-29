@@ -7,9 +7,9 @@
 - Added per-format property serializers and format-specific whole-object serializers.
 - Added immutable downstream specialization examples for JOSE and COSE.
 - Split integrated multi-format support into the experimental `multi` module and Modulator-powered `borson` bridge.
-- Added an interface-only JOSE/COSE comparison alongside the integrated multi-format tests.
+- Added delegated property defaults that do not alter serialized backing objects.
 - Temporarily disabled SBOM generation due to incorrect native carrier packaging in SBOMbastic 0.0.3.
-- Removed the unfinished YAML module, whole-object slices, read defaults, and strict unions.
+- Removed the unfinished YAML module, whole-object slices, and strict unions.
 
 ### Version 0.0.1
 - Initial version

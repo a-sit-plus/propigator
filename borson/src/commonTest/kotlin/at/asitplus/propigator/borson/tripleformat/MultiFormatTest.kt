@@ -25,7 +25,6 @@ import at.asitplus.propigator.multi.MultiFormatBackedObject
 import at.asitplus.propigator.multi.MultiFormatBackedSerializerTemplate
 import at.asitplus.propigator.multi.MultiFormatSerializer
 import at.asitplus.propigator.multi.ObjectFormatAdapter
-import at.asitplus.propigator.multi.ObjectFormatSet
 import at.asitplus.propigator.multi.objectFormats
 import at.asitplus.propigator.multi.property
 import at.asitplus.propigator.multi.propertyKey
@@ -40,7 +39,6 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.cbor.CborElement
 import kotlinx.serialization.cbor.CborInteger
 import kotlinx.serialization.cbor.CborMap
 import kotlinx.serialization.cbor.CborString
@@ -50,7 +48,6 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -62,16 +59,13 @@ private val asn1ObjectSerializer =
 private object IntAsAsn1RealSerializer : KSerializer<Int> {
     override val descriptor: SerialDescriptor = Double.serializer().descriptor
 
-    override fun deserialize(decoder: Decoder): Int =
-        decoder.decodeDouble().toInt()
+    override fun deserialize(decoder: Decoder): Int = decoder.decodeDouble().toInt()
 
-    override fun serialize(encoder: Encoder, value: Int) {
+    override fun serialize(encoder: Encoder, value: Int) =
         encoder.encodeDouble(value.toDouble())
-    }
 }
 
 private data object Asn1DerMapFormat : ObjectFormatAdapter {
-    override val id: String = "asn1-der"
     override val descriptor: SerialDescriptor = asn1ObjectSerializer.descriptor
 
     override fun supports(serialFormat: SerialFormat): Boolean = serialFormat is Der
@@ -117,194 +111,107 @@ private data object Asn1DerMapFormat : ObjectFormatAdapter {
     ): Any = requireNotNull((serialFormat as Der).encodeToTlv(serializer, value))
 }
 
-private val XoseFormats: ObjectFormatSet =
-    JsonCborFormats + objectFormats(Asn1DerMapFormat)
+private val formats = JsonCborFormats + objectFormats(Asn1DerMapFormat)
 
-@Serializable(with = XoseHeader.Serializer::class)
-private open class XoseHeader protected constructor(
+@Serializable(with = TripleFormatObject.Serializer::class)
+private class TripleFormatObject private constructor(
     backingObject: Map<*, *>,
     serialFormat: SerialFormat,
-) : MultiFormatBackedObject(backingObject, serialFormat, XoseFormats) {
+) : MultiFormatBackedObject(backingObject, serialFormat, formats) {
 
-    final var algorithm: String by multiFormatProperty(
-        JsonObjectFormat propertyKey "alg",
+    var name: String by multiFormatProperty(
+        JsonObjectFormat propertyKey "name",
         CborMapFormat propertyKey CborInteger(1L),
         Asn1DerMapFormat propertyKey Asn1.Int(1),
     )
         private set
 
-    final var type: String? by multiFormatProperty(
-        JsonObjectFormat propertyKey "typ",
-        CborMapFormat propertyKey CborInteger(-65_538L),
-        Asn1DerMapFormat propertyKey Asn1.Int(-65_538),
+    var count: Int by multiFormatProperty(
+        JsonObjectFormat propertyKey "count",
+        CborMapFormat propertyKey CborInteger(2L),
+        Asn1DerMapFormat.property(Asn1.Int(2), IntAsAsn1RealSerializer),
     )
         private set
 
-    final var keyId: String? by multiFormatProperty(
-        JsonObjectFormat propertyKey "kid",
-        CborMapFormat propertyKey CborInteger(4L),
-        Asn1DerMapFormat propertyKey Asn1.Int(4),
-    )
-        private set
-
-    object Serializer : MultiFormatSerializer<XoseHeader> by
+    object Serializer : MultiFormatSerializer<TripleFormatObject> by
         MultiFormatBackedSerializerTemplate(
             JsonObject.serializer().descriptor,
-            XoseFormats,
-            ::XoseHeader,
+            formats,
+            ::TripleFormatObject,
         )
 
     companion object {
         context(serialFormat: SerialFormat)
-        operator fun invoke(
-            algorithm: String,
-            type: String? = null,
-            keyId: String? = null,
-        ): XoseHeader = XoseHeader(emptyMap<Any, Any>(), serialFormat).validating {
-            this.algorithm = algorithm
-            this.type = type
-            this.keyId = keyId
-        }
-    }
-}
-
-@Serializable(with = GromitAuthenticationHeader.Serializer::class)
-private class GromitAuthenticationHeader private constructor(
-    backingObject: Map<*, *>,
-    serialFormat: SerialFormat,
-) : XoseHeader(backingObject, serialFormat) {
-
-    var numberOfChickens: Int by multiFormatProperty(
-        JsonObjectFormat propertyKey "number_of_chickens",
-        CborMapFormat propertyKey CborInteger(-65_537L),
-        Asn1DerMapFormat.property(
-            key = Asn1.Int(-65_537),
-            serializer = IntAsAsn1RealSerializer,
-        ),
-    )
-        private set
-
-    object Serializer : MultiFormatSerializer<GromitAuthenticationHeader> by
-        MultiFormatBackedSerializerTemplate(
-            JsonObject.serializer().descriptor,
-            XoseFormats,
-            ::GromitAuthenticationHeader,
-        )
-
-    companion object {
-        context(serialFormat: SerialFormat)
-        operator fun invoke(
-            algorithm: String,
-            numberOfChickens: Int,
-            type: String? = null,
-            keyId: String? = null,
-        ): GromitAuthenticationHeader {
-            val base = XoseHeader(algorithm, type, keyId)
-            return GromitAuthenticationHeader(base.backingObject, serialFormat).validating {
-                this.numberOfChickens = numberOfChickens
+        operator fun invoke(name: String, count: Int): TripleFormatObject =
+            TripleFormatObject(emptyMap<Any, Any>(), serialFormat).validating {
+                this.name = name
+                this.count = count
             }
-        }
     }
 }
 
 internal val TripleFormatTest by matrixSuite {
     val json = Json { ignoreUnknownKeys = true }
-    val cbor = Cbor {
-        ignoreUnknownKeys = true
-        encodeObjectTags = true
-    }
+    val cbor = Cbor { ignoreUnknownKeys = true }
     val der = DER { explicitNulls = true }
 
-    "the copied XOSE model supports three formats" {
-        XoseFormats.size shouldBe 3
-        GromitAuthenticationHeader.Serializer.descriptor shouldBe JsonObjectFormat.descriptor
-        GromitAuthenticationHeader.Serializer.serializerFor(cbor).descriptor shouldBe CborMapFormat.descriptor
-        GromitAuthenticationHeader.Serializer.serializerFor(der).descriptor shouldBe Asn1DerMapFormat.descriptor
+    "selects each format descriptor" {
+        formats.adapters.size shouldBe 3
+        TripleFormatObject.Serializer.descriptor shouldBe JsonObjectFormat.descriptor
+        TripleFormatObject.Serializer.serializerFor(cbor).descriptor shouldBe CborMapFormat.descriptor
+        TripleFormatObject.Serializer.serializerFor(der).descriptor shouldBe Asn1DerMapFormat.descriptor
     }
 
-    "a format-specific serializer rejects another format" {
-        val header = with(json) { GromitAuthenticationHeader("ES256", 23) }
-        shouldThrow<IllegalArgumentException> {
-            json.encodeToJsonElement(
-                GromitAuthenticationHeader.Serializer.serializerFor(der),
-                header,
-            )
-        }
-    }
-
-    "construct the specialized header as JSON" {
-        val header = with(json) {
-            GromitAuthenticationHeader("ES256", 23, "JWT", "moon-cheese-key")
-        }
-        val expected = JsonObject(
-            mapOf(
-                "alg" to JsonPrimitive("ES256"),
-                "typ" to JsonPrimitive("JWT"),
-                "kid" to JsonPrimitive("moon-cheese-key"),
-                "number_of_chickens" to JsonPrimitive(23),
-            )
+    "round-trips JSON, CBOR, and DER with a DER-specific property serializer" {
+        val jsonExpected = JsonObject(
+            mapOf("name" to JsonPrimitive("Gromit"), "count" to JsonPrimitive(23))
         )
+        val jsonValue = with(json) { TripleFormatObject("Gromit", 23) }
+        json.encodeToJsonElement(jsonValue) shouldBe jsonExpected
 
-        header.backingObject shouldBe expected
-        json.encodeToJsonElement(header) shouldBe expected
-    }
-
-    "construct the specialized header as CBOR" {
-        val header = with(cbor) {
-            GromitAuthenticationHeader("ES256", 23, "JWT", "moon-cheese-key")
-        }
-        val expected = CborMap(
-            mapOf(
-                CborInteger(1L) to CborString("ES256"),
-                CborInteger(-65_538L) to CborString("JWT"),
-                CborInteger(4L) to CborString("moon-cheese-key"),
-                CborInteger(-65_537L) to CborInteger(23L),
-            )
+        val cborExpected = CborMap(
+            mapOf(CborInteger(1L) to CborString("Gromit"), CborInteger(2L) to CborInteger(23L))
         )
-
-        header.backingObject shouldBe expected
+        val cborValue = with(cbor) { TripleFormatObject("Gromit", 23) }
         cbor.encodeToCborElement(
-            GromitAuthenticationHeader.Serializer.serializerFor(cbor),
-            header,
-        ) shouldBe expected
-    }
+            TripleFormatObject.Serializer.serializerFor(cbor),
+            cborValue,
+        ) shouldBe cborExpected
 
-    "construct and round-trip the specialized header as ASN.1 DER" {
-        val header = with(der) {
-            GromitAuthenticationHeader("ES256", 23, "JWT", "moon-cheese-key")
-        }
-        val expected = mapOf(
-            Asn1.Int(1) to Asn1.Utf8String("ES256"),
-            Asn1.Int(-65_538) to Asn1.Utf8String("JWT"),
-            Asn1.Int(4) to Asn1.Utf8String("moon-cheese-key"),
-            Asn1.Int(-65_537) to Asn1.Real(23.0),
+        val derExpected = mapOf(
+            Asn1.Int(1) to Asn1.Utf8String("Gromit"),
+            Asn1.Int(2) to Asn1.Real(23.0),
         )
-
-        header.backingObject shouldBe expected
-        val serializer = GromitAuthenticationHeader.Serializer.serializerFor(der)
-        val encoded = der.encodeToByteArray(serializer, header)
-        val decoded = der.decodeFromByteArray(serializer, encoded)
-        decoded.backingObject shouldBe expected
-        decoded.numberOfChickens shouldBe 23
+        val derSerializer = TripleFormatObject.Serializer.serializerFor(der)
+        val derValue = with(der) { TripleFormatObject("Gromit", 23) }
+        derValue.backingObject shouldBe derExpected
+        der.decodeFromByteArray(
+            derSerializer,
+            der.encodeToByteArray(derSerializer, derValue),
+        ).count shouldBe 23
     }
 
-    "all three formats reject a missing mandatory chicken count" {
+    "rejects a mismatched descriptor and missing required values" {
+        val jsonValue = with(json) { TripleFormatObject("Gromit", 23) }
+        shouldThrow<IllegalArgumentException> {
+            json.encodeToJsonElement(TripleFormatObject.Serializer.serializerFor(der), jsonValue)
+        }
         shouldThrow<NoSuchElementException> {
-            json.decodeFromJsonElement<GromitAuthenticationHeader>(
-                JsonObject(mapOf("alg" to JsonPrimitive("ES256")))
+            json.decodeFromJsonElement<TripleFormatObject>(
+                JsonObject(mapOf("name" to JsonPrimitive("Gromit")))
             )
         }
         shouldThrow<NoSuchElementException> {
-            cbor.decodeFromCborElement<GromitAuthenticationHeader>(
-                CborMap(mapOf(CborInteger(1L) to CborString("ES256")))
+            cbor.decodeFromCborElement<TripleFormatObject>(
+                CborMap(mapOf(CborInteger(1L) to CborString("Gromit")))
             )
         }
         shouldThrow<SerializationException> {
             der.decodeFromByteArray(
-                GromitAuthenticationHeader.Serializer.serializerFor(der),
+                TripleFormatObject.Serializer.serializerFor(der),
                 der.encodeToByteArray(
                     asn1ObjectSerializer,
-                    mapOf(Asn1.Int(1) to Asn1.Utf8String("ES256")),
+                    mapOf(Asn1.Int(1) to Asn1.Utf8String("Gromit")),
                 ),
             )
         }

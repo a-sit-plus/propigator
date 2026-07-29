@@ -21,7 +21,6 @@ data class DecodedObjectBacking(
 
 @ExperimentalMultiFormatApi
 interface ObjectFormatAdapter {
-    val id: String
     val descriptor: SerialDescriptor
 
     fun supports(serialFormat: SerialFormat): Boolean
@@ -53,20 +52,14 @@ interface ObjectFormatAdapter {
 }
 
 @ExperimentalMultiFormatApi
-class ObjectFormatSet private constructor(
+class ObjectFormatSet internal constructor(
     adapters: List<ObjectFormatAdapter>,
 ) {
     init {
         require(adapters.isNotEmpty()) { "At least one object format is required" }
-        adapters.groupBy { it.id }.forEach { (id, matches) ->
-            require(matches.all { it === matches.first() || it == matches.first() }) {
-                "Conflicting object format adapters for id '$id'"
-            }
-        }
     }
 
-    val adapters: List<ObjectFormatAdapter> = adapters.distinctBy { it.id }
-    val size: Int get() = adapters.size
+    val adapters: List<ObjectFormatAdapter> = adapters.distinct()
 
     operator fun plus(other: ObjectFormatSet): ObjectFormatSet =
         ObjectFormatSet(adapters + other.adapters)
@@ -83,61 +76,57 @@ class ObjectFormatSet private constructor(
         adapters.singleOrNull { it.supports(encoder) }
             ?: error("Expected exactly one adapter for ${encoder::class}")
 
-    companion object {
-        fun of(vararg adapters: ObjectFormatAdapter): ObjectFormatSet =
-            ObjectFormatSet(adapters.toList())
-    }
 }
 
 @ExperimentalMultiFormatApi
 fun objectFormats(vararg adapters: ObjectFormatAdapter): ObjectFormatSet =
-    ObjectFormatSet.of(*adapters)
+    ObjectFormatSet(adapters.toList())
 
 @ExperimentalMultiFormatApi
 interface ObjectFormatPropertyBinding<out V> {
-    val formatId: String
+    val format: ObjectFormatAdapter
     val key: Any
 }
 
 @ExperimentalMultiFormatApi
 data class ObjectFormatPropertyKey(
-    override val formatId: String,
+    override val format: ObjectFormatAdapter,
     override val key: Any,
 ) : ObjectFormatPropertyBinding<Nothing>
 
 @ExperimentalMultiFormatApi
 data class ObjectFormatProperty<V>(
-    override val formatId: String,
+    override val format: ObjectFormatAdapter,
     override val key: Any,
     val serializer: KSerializer<V>,
 ) : ObjectFormatPropertyBinding<V>
 
 @ExperimentalMultiFormatApi
 infix fun ObjectFormatAdapter.propertyKey(key: Any): ObjectFormatPropertyKey =
-    ObjectFormatPropertyKey(id, key)
+    ObjectFormatPropertyKey(this, key)
 
 @ExperimentalMultiFormatApi
 fun <V> ObjectFormatAdapter.property(
     key: Any,
     serializer: KSerializer<V>,
 ): ObjectFormatProperty<V> =
-    ObjectFormatProperty(id, key, serializer)
+    ObjectFormatProperty(this, key, serializer)
 
 @ExperimentalMultiFormatApi
 data class MultiFormatKey(
     val propertyName: String,
-    val aliases: Map<String, Any>,
-    val serializers: Map<String, KSerializer<*>> = emptyMap(),
+    val aliases: Map<ObjectFormatAdapter, Any>,
+    val serializers: Map<ObjectFormatAdapter, KSerializer<*>> = emptyMap(),
 ) {
     fun keyFor(adapter: ObjectFormatAdapter): Any =
-        aliases[adapter.id] ?: adapter.defaultKey(propertyName)
+        aliases[adapter] ?: adapter.defaultKey(propertyName)
 
     @Suppress("UNCHECKED_CAST")
     fun <V> serializerFor(
         adapter: ObjectFormatAdapter,
         default: KSerializer<V>,
     ): KSerializer<V> =
-        serializers[adapter.id] as? KSerializer<V> ?: default
+        serializers[adapter] as? KSerializer<V> ?: default
 }
 
 @ExperimentalMultiFormatApi
@@ -159,12 +148,12 @@ abstract class MultiFormatBackedObject(
         vararg bindings: ObjectFormatPropertyBinding<V>,
         serializer: KSerializer<V> = serializer(),
     ): BackedProperty<V> {
-        require(bindings.map { it.formatId }.distinct().size == bindings.size) {
+        require(bindings.map { it.format }.distinct().size == bindings.size) {
             "A property may define only one binding per format"
         }
-        val aliases = bindings.associate { it.formatId to it.key }
+        val aliases = bindings.associate { it.format to it.key }
         val serializers = bindings.mapNotNull { binding ->
-            (binding as? ObjectFormatProperty<*>)?.let { it.formatId to it.serializer }
+            (binding as? ObjectFormatProperty<*>)?.let { it.format to it.serializer }
         }.toMap()
         return backedProperty(serializer) {
             MultiFormatKey(it, aliases, serializers)
@@ -176,20 +165,17 @@ abstract class MultiFormatBackedObject(
         serializer: KSerializer<V> = serializer(),
         defaultValue: V,
     ): BackedProperty<V> {
-        require(bindings.map { it.formatId }.distinct().size == bindings.size) {
+        require(bindings.map { it.format }.distinct().size == bindings.size) {
             "A property may define only one binding per format"
         }
-        val aliases = bindings.associate { it.formatId to it.key }
+        val aliases = bindings.associate { it.format to it.key }
         val serializers = bindings.mapNotNull { binding ->
-            (binding as? ObjectFormatProperty<*>)?.let { it.formatId to it.serializer }
+            (binding as? ObjectFormatProperty<*>)?.let { it.format to it.serializer }
         }.toMap()
         return backedProperty(serializer, defaultValue) {
             MultiFormatKey(it, aliases, serializers)
         }
     }
-
-    final override fun isFormatNull(element: Any?): Boolean =
-        objectFormat.isFormatNull(element)
 
     protected final override fun keyFromPropertyName(name: String): MultiFormatKey =
         MultiFormatKey(name, emptyMap())
@@ -197,7 +183,9 @@ abstract class MultiFormatBackedObject(
     protected final override fun <V> readElement(
         key: MultiFormatKey,
         serializer: KSerializer<V>,
-    ): V? = backingObject[key.keyFor(objectFormat)]?.let {
+    ): V? = backingObject[key.keyFor(objectFormat)]
+        ?.takeUnless { objectFormat.isFormatNull(it) }
+        ?.let {
         objectFormat.decodeElement(
             serialFormat,
             it,
@@ -255,7 +243,7 @@ class MultiFormatBackedSerializerTemplate<T : MultiFormatBackedObject>(
     override fun serialize(encoder: Encoder, value: T) {
         val adapter = objectFormats.adapterFor(encoder)
         require(adapter === value.objectFormat || adapter == value.objectFormat) {
-            "A ${value.objectFormat.id}-backed value cannot be encoded as ${adapter.id}"
+            "A ${value.objectFormat}-backed value cannot be encoded as $adapter"
         }
         adapter.encodeObject(
             encoder,
@@ -271,6 +259,6 @@ private fun requireMatchingAdapter(
     expected: ObjectFormatAdapter,
 ) {
     require(actual === expected || actual == expected) {
-        "This serializer is bound to ${expected.id}, but was used with ${actual.id}"
+        "This serializer is bound to $expected, but was used with $actual"
     }
 }

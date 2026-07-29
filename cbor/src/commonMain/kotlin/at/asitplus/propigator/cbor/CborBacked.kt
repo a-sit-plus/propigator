@@ -22,17 +22,14 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
-typealias CborBackedProperty<V> =
-        ReadOnlyProperty<CborBacked, V>
-
 interface CborBacked : ObjectBacked {
     val backingObject: CborMap
     override val serialFormat: Cbor
 
-    override fun isFormatNull(element: Any?): Boolean = element is CborNull
-
     fun <V> getElement(key: CborElement, serializer: KSerializer<V>): V? =
-        backingObject[key]?.let { serialFormat.decodeFromCborElement(serializer, it) }
+        backingObject[key]
+            ?.takeUnless { it is CborNull }
+            ?.let { serialFormat.decodeFromCborElement(serializer, it) }
 
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
         getElement(CborString(key), serializer)
@@ -115,7 +112,7 @@ internal fun <V> createCborBackedProperty(
 ): ReadOnlyProperty<CborBacked, V> = ReadOnlyProperty { owner, property ->
     val actualKey = key ?: keyFromPropertyName(property.name)
     val element = owner.getElement(actualKey, serializer)
-    if (element == null || owner.isFormatNull(element)) {
+    if (element == null) {
         cborMissingValue(actualKey, serializer, defaultValue)
     } else {
         element
@@ -150,21 +147,21 @@ private fun <V> cborMissingValue(
 inline fun <reified V> cborProperty(
     key: CborElement? = null,
     serializer: KSerializer<V> = serializer(),
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(key, serializer, null)
 
 inline fun <reified V> cborProperty(
     key: CborElement? = null,
     serializer: KSerializer<V> = serializer(),
     defaultValue: V,
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(key, serializer, defaultValue = { defaultValue })
 
 inline fun <reified V> cborProperty(
     key: String,
     serializer: KSerializer<V> = serializer(),
     keyTags: ULongArray = ulongArrayOf(),
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(cborStringKey(key, keyTags), serializer, null)
 
 inline fun <reified V> cborProperty(
@@ -172,7 +169,7 @@ inline fun <reified V> cborProperty(
     serializer: KSerializer<V> = serializer(),
     keyTags: ULongArray = ulongArrayOf(),
     defaultValue: V,
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(
         cborStringKey(key, keyTags),
         serializer,
@@ -182,14 +179,14 @@ inline fun <reified V> cborProperty(
 inline fun <reified V> cborProperty(
     keyTags: ULongArray,
     serializer: KSerializer<V> = serializer(),
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(null, serializer, null) { cborStringKey(it, keyTags) }
 
 inline fun <reified V> cborProperty(
     keyTags: ULongArray,
     serializer: KSerializer<V> = serializer(),
     defaultValue: V,
-): CborBackedProperty<V> =
+): ReadOnlyProperty<CborBacked, V> =
     createCborBackedProperty(null, serializer, { defaultValue }) {
         cborStringKey(it, keyTags)
     }

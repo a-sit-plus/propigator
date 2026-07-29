@@ -19,6 +19,7 @@ import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.cbor.CborElement
 import kotlinx.serialization.cbor.CborInteger
 import kotlinx.serialization.cbor.CborMap
+import kotlinx.serialization.cbor.CborNull
 import kotlinx.serialization.cbor.CborString
 import kotlinx.serialization.cbor.decodeFromCborElement
 import kotlinx.serialization.cbor.encodeToCborElement
@@ -26,6 +27,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -127,19 +129,14 @@ internal val MultiFormatTest by matrixSuite {
     "format sets compose flat through a shared format" {
         val jsonCbor = objectFormats(JsonObjectFormat, CborMapFormat)
         val thirdFormat = object : ObjectFormatAdapter by JsonObjectFormat {
-            override val id: String = "third"
             override fun supports(serialFormat: SerialFormat): Boolean = false
             override fun supports(decoder: Decoder): Boolean = false
             override fun supports(encoder: Encoder): Boolean = false
         }
         val cborThird = objectFormats(CborMapFormat, thirdFormat)
 
-        (jsonCbor + cborThird).size shouldBe 3
-
-        val conflictingCbor = object : ObjectFormatAdapter by CborMapFormat {}
-        shouldThrow<IllegalArgumentException> {
-            jsonCbor + objectFormats(conflictingCbor)
-        }
+        (jsonCbor + cborThird).adapters.size shouldBe 3
+        (jsonCbor + objectFormats(CborMapFormat)).adapters.size shouldBe 2
     }
 
     "construct the specialized header as flat JSON" {
@@ -217,6 +214,30 @@ internal val MultiFormatTest by matrixSuite {
             gromit.defaultIssuer shouldBe "Gromit"
             cbor.encodeToCborElement(gromit) shouldBe copied
         }
+    }
+
+    "format null uses the delegated default in either format" {
+        val jsonHeader = json.decodeFromJsonElement<GromitAuthenticationHeader>(
+            JsonObject(
+                mapOf(
+                    "alg" to JsonPrimitive("ES256"),
+                    "number_of_chickens" to JsonPrimitive(23),
+                    "iss" to JsonNull,
+                )
+            )
+        )
+        val cborHeader = cbor.decodeFromCborElement<GromitAuthenticationHeader>(
+            CborMap(
+                mapOf(
+                    CborInteger(1L) to CborString("ES256"),
+                    CborInteger(-65_537L) to CborInteger(23L),
+                    CborInteger(-65_539L) to CborNull(),
+                )
+            )
+        )
+
+        jsonHeader.defaultIssuer shouldBe "Wallace"
+        cborHeader.defaultIssuer shouldBe "Wallace"
     }
 
     "both formats reject a missing mandatory chicken count" {

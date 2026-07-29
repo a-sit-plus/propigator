@@ -20,18 +20,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
-typealias JsonProperty<V> =
-    ReadOnlyProperty<JsonBacked, V>
-
 interface JsonBacked : ObjectBacked {
     val backingObject: JsonObject
     override val serialFormat: Json
 
-    override fun isFormatNull(element: Any?): Boolean = element is JsonNull
-
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
-        backingObject[key]?.let { serialFormat.decodeFromJsonElement(serializer, it) }
-
+        backingObject[key]
+            ?.takeUnless { it is JsonNull }
+            ?.let { serialFormat.decodeFromJsonElement(serializer, it) }
 }
 
 /**
@@ -64,7 +60,9 @@ abstract class JsonBackedObject(
     protected final override fun keyFromPropertyName(name: String): String = name
 
     protected final override fun <V> readElement(key: String, serializer: KSerializer<V>): V? =
-        backingObject[key]?.let { serialFormat.decodeFromJsonElement(serializer, it) }
+        backingObject[key]
+            ?.takeUnless { it is JsonNull }
+            ?.let { serialFormat.decodeFromJsonElement(serializer, it) }
 
     final override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
         readElement(key, serializer)
@@ -87,14 +85,14 @@ abstract class JsonBackedObject(
 inline fun <reified V> jsonProperty(
     key: String? = null,
     serializer: KSerializer<V> = serializer(),
-): JsonProperty<V> =
+): ReadOnlyProperty<JsonBacked, V> =
     backedProperty<JsonBacked, V>(key, serializer)
 
 inline fun <reified V> jsonProperty(
     key: String? = null,
     serializer: KSerializer<V> = serializer(),
     defaultValue: V,
-): JsonProperty<V> =
+): ReadOnlyProperty<JsonBacked, V> =
     backedProperty<JsonBacked, V>(key, serializer, defaultValue)
 
 class JsonBackedSerializerTemplate<T : JsonBacked>(

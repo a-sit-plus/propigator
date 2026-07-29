@@ -37,7 +37,6 @@ import kotlinx.serialization.json.jsonObject
 
 @ExperimentalMultiFormatApi
 data object JsonObjectFormat : ObjectFormatAdapter {
-    override val id: String = "json"
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor
 
     override fun supports(serialFormat: SerialFormat): Boolean = serialFormat is Json
@@ -84,7 +83,6 @@ data object JsonObjectFormat : ObjectFormatAdapter {
 
 @ExperimentalMultiFormatApi
 data object CborMapFormat : ObjectFormatAdapter {
-    override val id: String = "cbor"
     override val descriptor: SerialDescriptor = CborMap.serializer().descriptor
 
     override fun supports(serialFormat: SerialFormat): Boolean = serialFormat is Cbor
