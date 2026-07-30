@@ -16,6 +16,8 @@
 - Added generic `MultiFormatBacked<T>` and `BorsonBacked<T>` carrier envelopes, cross-format
   flattening, concrete subclass templates, and concise JSON/CBOR helpers.
 - Pulled native-envelope and flattened-carrier contracts into `core`.
+- Made envelope construction format-owned, with receiver and context-parameter forms, and moved
+  concrete backed construction to context-aware companion factories.
 - Added writable member delegates with caller-controlled setter visibility.
 - Added one-shot, type-safe protected initialization for read-only backed properties.
 - Added automatic validation for non-nullable member delegates.

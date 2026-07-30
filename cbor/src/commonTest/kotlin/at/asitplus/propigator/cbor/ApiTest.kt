@@ -26,17 +26,12 @@ data class CborCoreValue(
     val nullableDefault: String? = null,
 ) : CborCore
 
-@Serializable(with = ConcreteCborCore.Serializer::class)
+@Serializable(with = ConcreteCborCore.Companion::class)
 class ConcreteCborCore private constructor(
     backed: CborBacked<CborCoreValue>,
 ) : CborBacked<CborCoreValue>(backed), CborCore by backed.value {
 
-    constructor(
-        value: CborCoreValue,
-        serialFormat: Cbor = Cbor.Default,
-    ) : this(CborBacked(value, serialFormat))
-
-    object Serializer : CborBackedSerializerTemplate<CborCoreValue, ConcreteCborCore>(
+    companion object : CborBackedSerializerTemplate<CborCoreValue, ConcreteCborCore>(
         CborCoreValue.serializer(),
         ::ConcreteCborCore,
     )
@@ -66,7 +61,7 @@ val CborCoreTest by matrixSuite {
 
     "construct with an ordinary serializable value" {
         val value = CborCoreValue("some string", 1337)
-        val created = CborBacked(value, serialFormat)
+        val created = serialFormat.CborBacked(value)
 
         created.value shouldBe value
         created.backingObject shouldBe CborMap(
@@ -108,7 +103,9 @@ val CborCoreTest by matrixSuite {
     }
 
     "use backed byte array shortcuts" {
-        val value = CborBacked(CborCoreValue("some string", 1337), serialFormat)
+        val value = with(serialFormat) {
+            ConcreteCborCore(CborCoreValue("some string", 1337))
+        }
 
         val encoded = serialFormat.encodeToByteArrayBacked(value)
         serialFormat.decodeFromByteArrayBacked<CborCoreValue>(encoded).value shouldBe value.value
@@ -133,8 +130,8 @@ val CborCoreTest by matrixSuite {
     "construct with an explicit serializer" {
         val value = CborCoreValue("some string", 1337)
 
-        val created = CborBacked(value, CborCoreValue.serializer(), serialFormat)
+        val created = serialFormat.CborBacked(value, CborCoreValue.serializer())
 
-        created.backingObject shouldBe CborBacked(value, serialFormat).backingObject
+        created.backingObject shouldBe serialFormat.CborBacked(value).backingObject
     }
 }

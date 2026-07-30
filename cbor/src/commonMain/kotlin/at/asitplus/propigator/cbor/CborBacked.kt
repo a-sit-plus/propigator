@@ -25,6 +25,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.serializer
+import kotlin.jvm.JvmName
 import kotlin.properties.ReadOnlyProperty
 
 /** A serializable value together with its complete native CBOR map. */
@@ -59,24 +60,24 @@ open class CborBacked<out T> protected constructor(
     }
 }
 
-/** Creates a CBOR-backed envelope from an ordinary serializable value. */
-inline fun <reified T> CborBacked(
-    value: T,
-    serialFormat: Cbor = Cbor.Default,
-): CborBacked<T> = CborBacked(value, serializer(), serialFormat)
+/** Creates a CBOR-backed envelope owned by this format. */
+inline fun <reified T> Cbor.CborBacked(value: T): CborBacked<T> =
+    CborBacked(value, serializer())
 
 /** Creates a CBOR-backed envelope using an explicitly selected serializer. */
-fun <T> CborBacked(
-    value: T,
-    serializer: KSerializer<T>,
-    serialFormat: Cbor = Cbor.Default,
-): CborBacked<T> =
+fun <T> Cbor.CborBacked(value: T, serializer: KSerializer<T>): CborBacked<T> =
     CborBacked.create(
         value = value,
-        backingObject = serialFormat.encodeToCborElement(serializer, value) as? CborMap
+        backingObject = encodeToCborElement(serializer, value) as? CborMap
             ?: error("CborBacked only supports values encoded as CBOR maps"),
-        serialFormat = serialFormat,
+        serialFormat = this,
     )
+
+/** Creates a CBOR-backed envelope using the contextual format. */
+@JvmName("CborBackedFromContext")
+context(serialFormat: Cbor)
+inline fun <reified T> CborBacked(value: T): CborBacked<T> =
+    serialFormat.CborBacked(value)
 
 inline fun <reified T> Cbor.decodeFromCborElementBacked(element: CborElement): CborBacked<T> =
     decodeFromCborElement(element)
@@ -170,6 +171,10 @@ open class CborBackedSerializerTemplate<T, B : CborBacked<T>>(
     private val wrap: (CborBacked<T>) -> B,
 ) : KSerializer<B> {
     override val descriptor: SerialDescriptor = CborMap.serializer().descriptor
+
+    context(serialFormat: Cbor)
+    open operator fun invoke(value: T): B =
+        wrap(serialFormat.CborBacked(value, valueSerializer))
 
     override fun deserialize(decoder: Decoder): B {
         decoder as? CborDecoder

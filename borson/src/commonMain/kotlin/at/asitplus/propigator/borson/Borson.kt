@@ -50,6 +50,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
+import kotlin.jvm.JvmName
 
 @ExperimentalMultiFormatApi
 data object JsonObjectFormat : ObjectFormatAdapter {
@@ -233,18 +234,21 @@ open class BorsonBacked<out T> protected constructor(
 }
 
 @ExperimentalMultiFormatApi
-inline fun <reified T> BorsonBacked(
-    value: T,
-    serialFormat: SerialFormat,
-): BorsonBacked<T> = BorsonBacked(value, serializer(), serialFormat)
+inline fun <reified T> SerialFormat.BorsonBacked(value: T): BorsonBacked<T> =
+    BorsonBacked(value, serializer())
 
 @ExperimentalMultiFormatApi
-fun <T> BorsonBacked(
+fun <T> SerialFormat.BorsonBacked(
     value: T,
     serializer: KSerializer<T>,
-    serialFormat: SerialFormat,
 ): BorsonBacked<T> =
-    BorsonBacked.create(MultiFormatBacked(value, serializer, serialFormat, JsonCborFormats))
+    BorsonBacked.create(MultiFormatBacked(value, serializer, this, JsonCborFormats))
+
+@ExperimentalMultiFormatApi
+@JvmName("BorsonBackedFromContext")
+context(serialFormat: SerialFormat)
+inline fun <reified T> BorsonBacked(value: T): BorsonBacked<T> =
+    serialFormat.BorsonBacked(value)
 
 @ExperimentalMultiFormatApi
 open class BorsonBackedSerializerTemplate<T, B : BorsonBacked<T>>(

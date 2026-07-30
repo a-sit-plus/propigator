@@ -27,7 +27,7 @@ val CoreTest by matrixSuite {
     }
 
     "construct with an ordinary serializable value" {
-        val created = JsonBacked(CoreValue("some string", 1337), json)
+        val created = json.JsonBacked(CoreValue("some string", 1337))
         val expected = JsonObject(
             mapOf(
                 "aString" to JsonPrimitive("some string"),
@@ -44,10 +44,10 @@ val CoreTest by matrixSuite {
     "construct with an explicit serializer" {
         val value = CoreValue("some string", 1337)
 
-        val created = JsonBacked(value, CoreValue.serializer(), json)
+        val created = json.JsonBacked(value, CoreValue.serializer())
 
         created.value shouldBe value
-        created.backingObject shouldBe JsonBacked(value, json).backingObject
+        created.backingObject shouldBe json.JsonBacked(value).backingObject
     }
 
     "retain properties unknown to the carrier" {

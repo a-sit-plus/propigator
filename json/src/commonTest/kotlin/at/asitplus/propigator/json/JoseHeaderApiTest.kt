@@ -56,17 +56,12 @@ data class GromitAuthenticationHeader(
         )
 }
 
-@Serializable(with = JsonBackedGromitHeader.Serializer::class)
+@Serializable(with = JsonBackedGromitHeader.Companion::class)
 class JsonBackedGromitHeader private constructor(
     backed: JsonBacked<GromitAuthenticationHeader>,
 ) : JsonBacked<GromitAuthenticationHeader>(backed), GromitHeader by backed.value {
 
-    constructor(
-        value: GromitAuthenticationHeader,
-        serialFormat: Json = Json.Default,
-    ) : this(JsonBacked(value, serialFormat))
-
-    object Serializer :
+    companion object :
         JsonBackedSerializerTemplate<GromitAuthenticationHeader, JsonBackedGromitHeader>(
             GromitAuthenticationHeader.serializer(),
             ::JsonBackedGromitHeader,
@@ -103,10 +98,7 @@ val JoseHeaderApiTest by matrixSuite {
             ),
             numberOfChickens = 23,
         )
-        val header = JsonBacked(
-            value,
-            json,
-        )
+        val header = with(json) { JsonBackedGromitHeader(value) }
 
         header.value.type shouldBe "JWT"
         header.backingObject shouldNotContainKey "type"
@@ -237,7 +229,9 @@ val JoseHeaderApiTest by matrixSuite {
     }
 
     "base construction does not acquire downstream claims" {
-        val basic = JsonBacked(StandardJoseHeader(algorithm = "ES256"), json)
+        val basic = with(json) {
+            JsonBacked(StandardJoseHeader(algorithm = "ES256"))
+        }
         basic.backingObject shouldNotContainKey "number_of_chickens"
     }
 }

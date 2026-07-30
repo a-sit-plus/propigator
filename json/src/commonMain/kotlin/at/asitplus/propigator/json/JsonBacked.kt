@@ -23,6 +23,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
+import kotlin.jvm.JvmName
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -59,23 +60,23 @@ open class JsonBacked<out T> protected constructor(
     }
 }
 
-/** Creates a JSON-backed envelope from an ordinary serializable value. */
-inline fun <reified T> JsonBacked(
-    value: T,
-    serialFormat: Json = Json.Default,
-): JsonBacked<T> = JsonBacked(value, serializer(), serialFormat)
+/** Creates a JSON-backed envelope owned by this format. */
+inline fun <reified T> Json.JsonBacked(value: T): JsonBacked<T> =
+    JsonBacked(value, serializer())
 
 /** Creates a JSON-backed envelope using an explicitly selected serializer. */
-fun <T> JsonBacked(
-    value: T,
-    serializer: KSerializer<T>,
-    serialFormat: Json = Json.Default,
-): JsonBacked<T> =
+fun <T> Json.JsonBacked(value: T, serializer: KSerializer<T>): JsonBacked<T> =
     JsonBacked.create(
         value = value,
-        backingObject = serialFormat.encodeToJsonElement(serializer, value).jsonObject,
-        serialFormat = serialFormat,
+        backingObject = encodeToJsonElement(serializer, value).jsonObject,
+        serialFormat = this,
     )
+
+/** Creates a JSON-backed envelope using the contextual format. */
+@JvmName("JsonBackedFromContext")
+context(serialFormat: Json)
+inline fun <reified T> JsonBacked(value: T): JsonBacked<T> =
+    serialFormat.JsonBacked(value)
 
 inline fun <reified T> Json.decodeFromJsonElementBacked(element: JsonElement): JsonBacked<T> =
     decodeFromJsonElement(element)
@@ -117,6 +118,10 @@ open class JsonBackedSerializerTemplate<T, B : JsonBacked<T>>(
     private val wrap: (JsonBacked<T>) -> B,
 ) : KSerializer<B> {
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor
+
+    context(serialFormat: Json)
+    open operator fun invoke(value: T): B =
+        wrap(serialFormat.JsonBacked(value, valueSerializer))
 
     override fun deserialize(decoder: Decoder): B {
         decoder as? JsonDecoder

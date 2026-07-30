@@ -354,6 +354,10 @@ open class MultiFormatBackedSerializerTemplate<T, B : MultiFormatBacked<T>>(
 ) : MultiFormatSerializer<B> {
     override val descriptor: SerialDescriptor = valueSerializer.descriptor
 
+    context(serialFormat: SerialFormat)
+    open operator fun invoke(value: T): B =
+        wrap(MultiFormatBacked(value, valueSerializer, serialFormat, objectFormats))
+
     override fun serializerFor(serialFormat: SerialFormat): KSerializer<B> {
         val expectedAdapter = objectFormats.adapterFor(serialFormat)
         return object : KSerializer<B> {

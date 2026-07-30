@@ -77,17 +77,12 @@ data class GromitAuthenticationHeader(
         )
 }
 
-@Serializable(with = BorsonBackedGromitHeader.Serializer::class)
+@Serializable(with = BorsonBackedGromitHeader.Companion::class)
 class BorsonBackedGromitHeader private constructor(
     backed: BorsonBacked<GromitAuthenticationHeader>,
 ) : BorsonBacked<GromitAuthenticationHeader>(backed), GromitHeader by backed.value {
 
-    constructor(
-        value: GromitAuthenticationHeader,
-        serialFormat: SerialFormat,
-    ) : this(BorsonBacked(value, serialFormat))
-
-    object Serializer :
+    companion object :
         BorsonBackedSerializerTemplate<GromitAuthenticationHeader, BorsonBackedGromitHeader>(
             GromitAuthenticationHeader.serializer(),
             ::BorsonBackedGromitHeader,
@@ -121,13 +116,14 @@ internal val MultiFormatTest by matrixSuite {
     }
 
     "construct the specialized header as flat JSON" {
-        val header = BorsonBackedGromitHeader(
-            GromitAuthenticationHeader(
-                StandardXoseHeader("ES256", "JWT", "moon-cheese-key"),
-                23,
-            ),
-            json,
-        )
+        val header = with(json) {
+            BorsonBackedGromitHeader(
+                GromitAuthenticationHeader(
+                    StandardXoseHeader("ES256", "JWT", "moon-cheese-key"),
+                    23,
+                )
+            )
+        }
         val expected = JsonObject(
             mapOf(
                 "alg" to JsonPrimitive("ES256"),
@@ -143,13 +139,14 @@ internal val MultiFormatTest by matrixSuite {
     }
 
     "construct the specialized header as a flat COSE map" {
-        val header = BorsonBackedGromitHeader(
-            GromitAuthenticationHeader(
-                StandardXoseHeader("ES256", "JWT", "moon-cheese-key"),
-                23,
-            ),
-            cbor,
-        )
+        val header = with(cbor) {
+            BorsonBackedGromitHeader(
+                GromitAuthenticationHeader(
+                    StandardXoseHeader("ES256", "JWT", "moon-cheese-key"),
+                    23,
+                )
+            )
+        }
         val expected = CborMap(
             mapOf(
                 CborInteger(1L) to CborString("ES256"),

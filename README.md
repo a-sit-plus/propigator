@@ -52,7 +52,11 @@ data class Person(
     val displayName: String? = null,
 )
 
-val person: JsonBacked<Person> = JsonBacked(Person("42", "Arthur"), json)
+val person: JsonBacked<Person> = json.JsonBacked(Person("42", "Arthur"))
+
+val contextualPerson = with(json) {
+    JsonBacked(Person("42", "Arthur"))
+}
 ```
 
 `JsonBacked<T>` has one generic custom serializer. For ordinary carriers, `T` is simply
@@ -113,12 +117,12 @@ Concrete backed types can delegate the same semantic interface and expose carrie
 without `.value`:
 
 ```kotlin
-@Serializable(with = JsonBackedApplicationJoseHeader.Serializer::class)
+@Serializable(with = JsonBackedApplicationJoseHeader.Companion::class)
 class JsonBackedApplicationJoseHeader private constructor(
     backed: JsonBacked<ApplicationJoseHeader>,
 ) : JsonBacked<ApplicationJoseHeader>(backed), JoseHeader by backed.value {
 
-    object Serializer :
+    companion object :
         JsonBackedSerializerTemplate<ApplicationJoseHeader, JsonBackedApplicationJoseHeader>(
             ApplicationJoseHeader.serializer(),
             ::JsonBackedApplicationJoseHeader,
@@ -155,7 +159,7 @@ data class Claims(
     val issuer: String? = null,
 )
 
-val claims = CborBacked(Claims("ES256"), cbor)
+val claims = cbor.CborBacked(Claims("ES256"))
 val encoded = cbor.encodeToByteArrayBacked(claims)
 val decoded = cbor.decodeFromByteArrayBacked<Claims>(encoded)
 
@@ -201,8 +205,8 @@ data class XoseHeader(
     val algorithm: String,
 )
 
-val jsonHeader = BorsonBacked(XoseHeader("ES256"), json)
-val cborHeader = BorsonBacked(XoseHeader("ES256"), cbor)
+val jsonHeader = json.BorsonBacked(XoseHeader("ES256"))
+val cborHeader = cbor.BorsonBacked(XoseHeader("ES256"))
 ```
 
 `BorsonFlatteningSerializerTemplate` flattens delegated base carriers in both formats.
