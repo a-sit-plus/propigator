@@ -45,44 +45,58 @@ kotlin {
 ```
 
 ```kotlin
-@Serializable(with = Person.Companion::class)
-class Person private constructor(
-    backingObject: JsonObject,
-    serialFormat: Json,
-) : JsonBackedObject(backingObject, serialFormat) {
+@Serializable
+data class Person(
+    val id: String,
+    @SerialName("display_name")
+    val displayName: String? = null,
+)
 
-    val id: String by jsonProperty()
+val person: JsonBacked<Person> = JsonBacked(Person("42", "Arthur"), json)
+```
 
-    val displayName: String? by jsonProperty("display_name")
+`JsonBacked<T>` is the only custom serializer. `T` is an ordinary `@Serializable` carrier:
+its generated serializer handles construction and validation, while the envelope retains the
+complete source `JsonObject`. Unknown properties therefore survive unchanged even when the
+carrier does not declare them. Constructed envelopes obtain their backing object by encoding the
+carrier once.
 
-    companion object : JsonBackedSerializerTemplate<Person>(::Person) {
-        context(serialFormat: Json)
-        operator fun invoke(id: String, displayName: String? = null): Person =
-            Person(JsonObject(emptyMap()), serialFormat).validating {
-                initBackedProperty(Person::id, id)
-                initBackedProperty(Person::displayName, displayName)
-            }
-    }
+```kotlin
+val decoded = json.decodeFromString<JsonBacked<Person>>(
+    """{"id":"42","future_claim":{"untouched":true}}"""
+)
+json.encodeToString(decoded) // future_claim is retained
+```
+
+For extensible protocols, use a carrier contract. Each implementation declares its fields once,
+and changing the contract produces compiler errors in downstream implementations:
+
+```kotlin
+interface JoseHeader {
+    val algorithm: String
+    val type: String?
 }
+
+@Serializable
+data class StandardJoseHeader(
+    @SerialName("alg") override val algorithm: String,
+    @SerialName("typ") override val type: String? = null,
+) : JoseHeader
+
+@Serializable
+data class ApplicationJoseHeader(
+    @SerialName("alg") override val algorithm: String,
+    @SerialName("typ") override val type: String,
+    val applicationClaim: String,
+) : JoseHeader
 ```
 
-The properties are read-only. Their protected initializers may be consumed exactly once during controlled construction. Non-nullable member delegates are validated automatically after deserialization and when `validating { ... }` completes.
+This also permits a downstream carrier to narrow an optional property to a non-nullable one.
 
-Override `validate()` and call `super.validate()` only for additional semantic constraints.
-
-Defaults are read without changing the backing object or serialized output:
+Additional typed views can read undeclared claims directly from the retained object:
 
 ```kotlin
-val locale: String by jsonProperty(defaultValue = "en")
-```
-
-Downstream modules can add lazy, read-only views without changing the base type:
-
-```kotlin
-val Person.locale: String? by jsonProperty("locale")
-
-val Person.displayLabel: String
-    get() = locale?.let { "$id ($it)" } ?: id
+val JsonBacked<JoseHeader>.locale: String? by jsonProperty()
 ```
 
 ## CBOR

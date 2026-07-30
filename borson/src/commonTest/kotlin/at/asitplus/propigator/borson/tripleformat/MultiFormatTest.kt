@@ -138,8 +138,8 @@ private class TripleFormatObject private constructor(
         context(serialFormat: SerialFormat)
         operator fun invoke(name: String, count: Int): TripleFormatObject =
             TripleFormatObject(emptyMap<Any, Any>(), serialFormat).validating {
-                initBackedProperty(TripleFormatObject::name, name)
-                initBackedProperty(TripleFormatObject::count, count)
+                initBackedProperty(TripleFormatObject::name).with(name)
+                initBackedProperty(TripleFormatObject::count).with(count)
             }
     }
 }

@@ -39,9 +39,9 @@ class CborCoreObj private constructor(
             nativeKeyValue: String = "native key",
         ): CborCoreObj =
             CborCoreObj(CborMap(emptyMap()), serialFormat).validating {
-                initBackedProperty(CborCoreObj::aString, aString)
-                initBackedProperty(CborCoreObj::anInt, anInt)
-                initBackedProperty(CborCoreObj::nativeKeyValue, nativeKeyValue)
+                initBackedProperty(CborCoreObj::aString).with(aString)
+                initBackedProperty(CborCoreObj::anInt).with(anInt)
+                initBackedProperty(CborCoreObj::nativeKeyValue).with(nativeKeyValue)
             }
     }
 }

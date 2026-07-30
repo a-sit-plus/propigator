@@ -1,7 +1,12 @@
 # Changelog
 ### Unreleased
+- Replaced JSON-backed subclasses, delegated members, per-class factories, and per-class serializers
+  with ordinary serializable carriers inside one generic `JsonBacked<T>` envelope.
+- Added carrier contracts for compile-time downstream schema feedback and nullable-to-non-null
+  property refinement.
+- Retained unknown JSON properties losslessly even when the caller's `Json` rejects unknown keys.
 - Added writable member delegates with caller-controlled setter visibility.
-- Added one-shot protected initialization for read-only backed properties.
+- Added one-shot, type-safe protected initialization for read-only backed properties.
 - Added automatic validation for non-nullable member delegates.
 - Added native CBOR keys, including tagged and complex keys.
 - Added composable multi-format adapters and the JSON/CBOR convenience set.

@@ -19,6 +19,11 @@ interface ObjectBacked {
     fun validate(): Unit = Unit
 }
 
+/** A typed value paired with a lossless native backing object. */
+interface Backed<out T> : ObjectBacked {
+    val value: T
+}
+
 abstract class ObjectBackedObject<K> : ObjectBacked {
     private val requiredPropertyChecks = mutableListOf<() -> Unit>()
     private val propertyInitializers = mutableMapOf<String, (Any?) -> Unit>()
@@ -27,11 +32,19 @@ abstract class ObjectBackedObject<K> : ObjectBacked {
     protected abstract fun <V> readElement(key: K, serializer: KSerializer<V>): V?
     protected abstract fun <V> writeElement(key: K, serializer: KSerializer<V>, value: V)
 
-    /** Initializes a delegated property exactly once. */
-    protected fun <V> initBackedProperty(property: KProperty1<*, V>, value: V) {
+    /** Returns a type-safe initializer that may be consumed exactly once. */
+    protected fun <V> initBackedProperty(
+        property: KProperty1<*, V>,
+    ): BackedPropertyInitializer<V> = BackedPropertyInitializer {
         val initializer = propertyInitializers.remove(property.name)
             ?: error("Backed property '${property.name}' is not available for initialization")
-        initializer(value)
+        initializer(it)
+    }
+
+    protected class BackedPropertyInitializer<V> internal constructor(
+        private val initializer: (V) -> Unit,
+    ) {
+        fun with(value: V) = initializer(value)
     }
 
     protected inline fun <reified V> backedProperty(

@@ -58,6 +58,12 @@ open class XoseHeader protected constructor(
         defaultValue = "Wallace",
     )
 
+    protected fun initXoseHeader(algorithm: String, type: String?, keyId: String?) {
+        initBackedProperty(XoseHeader::algorithm).with(algorithm)
+        initBackedProperty(XoseHeader::type).with(type)
+        initBackedProperty(XoseHeader::keyId).with(keyId)
+    }
+
     companion object : MultiFormatBackedSerializerTemplate<XoseHeader>(
         JsonObject.serializer().descriptor,
         JsonCborFormats,
@@ -69,9 +75,7 @@ open class XoseHeader protected constructor(
             type: String? = null,
             keyId: String? = null,
         ): XoseHeader = XoseHeader(emptyMap<Any, Any>(), serialFormat).validating {
-            initBackedProperty(XoseHeader::algorithm, algorithm)
-            initBackedProperty(XoseHeader::type, type)
-            initBackedProperty(XoseHeader::keyId, keyId)
+            initXoseHeader(algorithm, type, keyId)
         }
     }
 }
@@ -98,15 +102,13 @@ class GromitAuthenticationHeader private constructor(
             numberOfChickens: Int,
             type: String? = null,
             keyId: String? = null,
-        ): GromitAuthenticationHeader {
-            val base = XoseHeader(algorithm, type, keyId)
-            return GromitAuthenticationHeader(base.backingObject, serialFormat).validating {
+        ): GromitAuthenticationHeader =
+            GromitAuthenticationHeader(emptyMap<Any, Any>(), serialFormat).validating {
+                initXoseHeader(algorithm, type, keyId)
                 initBackedProperty(
-                    GromitAuthenticationHeader::numberOfChickens,
-                    numberOfChickens,
-                )
+                    GromitAuthenticationHeader::numberOfChickens
+                ).with(numberOfChickens)
             }
-        }
     }
 }
 
