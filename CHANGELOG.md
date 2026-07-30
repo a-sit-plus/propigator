@@ -10,6 +10,7 @@
 - Added a reusable serializer template for concrete `JsonBacked` subclasses that delegate carrier
   interfaces and expose both carrier and backing-only properties directly.
 - Added concise `Json` element and string helpers for generic backed envelopes.
+- Added explicit-serializer construction for `JsonBacked` envelopes.
 - Added writable member delegates with caller-controlled setter visibility.
 - Added one-shot, type-safe protected initialization for read-only backed properties.
 - Added automatic validation for non-nullable member delegates.

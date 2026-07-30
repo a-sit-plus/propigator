@@ -63,10 +63,17 @@ open class JsonBacked<out T> protected constructor(
 inline fun <reified T> JsonBacked(
     value: T,
     serialFormat: Json = Json.Default,
+): JsonBacked<T> = JsonBacked(value, serializer(), serialFormat)
+
+/** Creates a JSON-backed envelope using an explicitly selected serializer. */
+fun <T> JsonBacked(
+    value: T,
+    serializer: KSerializer<T>,
+    serialFormat: Json = Json.Default,
 ): JsonBacked<T> =
     JsonBacked.create(
         value = value,
-        backingObject = serialFormat.encodeToJsonElement(serializer<T>(), value).jsonObject,
+        backingObject = serialFormat.encodeToJsonElement(serializer, value).jsonObject,
         serialFormat = serialFormat,
     )
 

@@ -41,6 +41,15 @@ val CoreTest by matrixSuite {
         json.encodeToJsonElement(created) shouldBe expected
     }
 
+    "construct with an explicit serializer" {
+        val value = CoreValue("some string", 1337)
+
+        val created = JsonBacked(value, CoreValue.serializer(), json)
+
+        created.value shouldBe value
+        created.backingObject shouldBe JsonBacked(value, json).backingObject
+    }
+
     "retain properties unknown to the carrier" {
         val input = JsonObject(
             mapOf(
