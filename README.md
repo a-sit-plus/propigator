@@ -55,11 +55,11 @@ data class Person(
 val person: JsonBacked<Person> = JsonBacked(Person("42", "Arthur"), json)
 ```
 
-`JsonBacked<T>` is the only custom serializer. `T` is an ordinary `@Serializable` carrier:
-its generated serializer handles construction and validation, while the envelope retains the
-complete source `JsonObject`. Unknown properties therefore survive unchanged even when the
-carrier does not declare them. Constructed envelopes obtain their backing object by encoding the
-carrier once.
+`JsonBacked<T>` has one generic custom serializer. For ordinary carriers, `T` is simply
+`@Serializable`: its generated serializer handles construction and validation, while the envelope
+retains the complete source `JsonObject`. Unknown properties therefore survive unchanged even when
+the carrier does not declare them. Constructed envelopes obtain their backing object by encoding
+the carrier once.
 
 ```kotlin
 val decoded = json.decodeFromString<JsonBacked<Person>>(
@@ -68,8 +68,8 @@ val decoded = json.decodeFromString<JsonBacked<Person>>(
 json.encodeToString(decoded) // future_claim is retained
 ```
 
-For extensible protocols, use a carrier contract. Each implementation declares its fields once,
-and changing the contract produces compiler errors in downstream implementations:
+For extensible protocols, keep the semantic contract separate from its standard serializable
+carrier:
 
 ```kotlin
 interface JoseHeader {
@@ -82,16 +82,32 @@ data class StandardJoseHeader(
     @SerialName("alg") override val algorithm: String,
     @SerialName("typ") override val type: String? = null,
 ) : JoseHeader
-
-@Serializable
-data class ApplicationJoseHeader(
-    @SerialName("alg") override val algorithm: String,
-    @SerialName("typ") override val type: String,
-    val applicationClaim: String,
-) : JoseHeader
 ```
 
-This also permits a downstream carrier to narrow an optional property to a non-nullable one.
+Downstream carriers can reuse every base field through normal Kotlin delegation while remaining a
+flat JSON object:
+
+```kotlin
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = ApplicationJoseHeader.Serializer::class)
+data class ApplicationJoseHeader(
+    override val base: StandardJoseHeader,
+    val applicationClaim: String,
+) : JoseHeader by base, JsonFlattened<StandardJoseHeader> {
+
+    @Transient
+    override val type: String = requireNotNull(base.type)
+
+    object Serializer : JsonFlatteningSerializerTemplate<ApplicationJoseHeader>(
+        ApplicationJoseHeader.generatedSerializer()
+    )
+}
+```
+
+`JsonFlatteningSerializerTemplate` retains the compiler-generated serializer, flattens its `base`
+property during encoding, and reconstructs that nested shape internally during decoding. It works
+without `JsonBacked`; combining both features additionally preserves unknown source properties.
 
 Additional typed views can read undeclared claims directly from the retained object:
 

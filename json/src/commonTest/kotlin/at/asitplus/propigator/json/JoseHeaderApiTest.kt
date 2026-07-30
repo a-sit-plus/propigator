@@ -1,14 +1,19 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package at.asitplus.propigator.json
 
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.maps.shouldNotContainKey
 import io.kotest.matchers.shouldBe
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNamingStrategy
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -29,17 +34,36 @@ data class StandardJoseHeader(
     override val keyId: String? = null,
 ) : JoseHeader
 
-@Serializable
+@KeepGeneratedSerializer
+@Serializable(with = GromitAuthenticationHeader.Serializer::class)
 data class GromitAuthenticationHeader(
-    @SerialName("alg")
-    override val algorithm: String,
-    @SerialName("typ")
-    override val type: String,
-    @SerialName("kid")
-    override val keyId: String? = null,
+    override val base: StandardJoseHeader,
     @SerialName("number_of_chickens")
     val numberOfChickens: Int,
-) : JoseHeader
+) : JoseHeader by base, JsonFlattened<StandardJoseHeader> {
+
+    @Transient
+    override val type: String =
+        base.type ?: throw SerializationException("Gromit authentication headers require 'typ'")
+
+    object Serializer :
+        JsonFlatteningSerializerTemplate<GromitAuthenticationHeader>(
+            GromitAuthenticationHeader.generatedSerializer()
+        )
+}
+
+@KeepGeneratedSerializer
+@Serializable(with = CollidingJsonFlattened.Serializer::class)
+private data class CollidingJsonFlattened(
+    override val base: StandardJoseHeader,
+    @SerialName("alg")
+    val extensionAlgorithm: String,
+) : JsonFlattened<StandardJoseHeader> {
+    object Serializer :
+        JsonFlatteningSerializerTemplate<CollidingJsonFlattened>(
+            CollidingJsonFlattened.generatedSerializer()
+        )
+}
 
 val JsonBacked<JoseHeader>.applicationClaim: String? by jsonProperty("application_claim")
 
@@ -50,17 +74,21 @@ val JoseHeaderApiTest by matrixSuite {
     }
 
     "construct a specialized flat JOSE header" {
-        val header = JsonBacked(
-            GromitAuthenticationHeader(
+        val value = GromitAuthenticationHeader(
+            base = StandardJoseHeader(
                 algorithm = "ES256",
-                numberOfChickens = 23,
                 type = "JWT",
                 keyId = "moon-cheese-key",
             ),
+            numberOfChickens = 23,
+        )
+        val header = JsonBacked(
+            value,
             json,
         )
 
         header.value.type shouldBe "JWT"
+        header.backingObject shouldNotContainKey "type"
         header.backingObject shouldBe JsonObject(
             mapOf(
                 "alg" to JsonPrimitive("ES256"),
@@ -69,6 +97,55 @@ val JoseHeaderApiTest by matrixSuite {
                 "number_of_chickens" to JsonPrimitive(23),
             )
         )
+    }
+
+    "flatten delegation without a JsonBacked envelope" {
+        val expected = JsonObject(
+            mapOf(
+                "alg" to JsonPrimitive("ES256"),
+                "typ" to JsonPrimitive("JWT"),
+                "number_of_chickens" to JsonPrimitive(23),
+            )
+        )
+        val value = GromitAuthenticationHeader(
+            base = StandardJoseHeader(algorithm = "ES256", type = "JWT"),
+            numberOfChickens = 23,
+        )
+
+        json.encodeToJsonElement(value) shouldBe expected
+        json.decodeFromJsonElement<GromitAuthenticationHeader>(expected) shouldBe value
+    }
+
+    "honor the active JSON naming strategy while flattening" {
+        val prefixedJson = Json {
+            ignoreUnknownKeys = false
+            namingStrategy = JsonNamingStrategy { _, _, serialName -> "x_$serialName" }
+        }
+        val value = GromitAuthenticationHeader(
+            base = StandardJoseHeader(algorithm = "ES256", type = "JWT"),
+            numberOfChickens = 23,
+        )
+        val expected = JsonObject(
+            mapOf(
+                "x_alg" to JsonPrimitive("ES256"),
+                "x_typ" to JsonPrimitive("JWT"),
+                "x_number_of_chickens" to JsonPrimitive(23),
+            )
+        )
+
+        prefixedJson.encodeToJsonElement(value) shouldBe expected
+        prefixedJson.decodeFromJsonElement<GromitAuthenticationHeader>(expected) shouldBe value
+    }
+
+    "reject colliding base and extension properties" {
+        val value = CollidingJsonFlattened(
+            base = StandardJoseHeader(algorithm = "ES256"),
+            extensionAlgorithm = "ES384",
+        )
+
+        shouldThrow<SerializationException> {
+            json.encodeToJsonElement(value)
+        }
     }
 
     "retain application-specific claims unknown to the base carrier" {
