@@ -8,11 +8,14 @@ import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -29,16 +32,31 @@ import kotlin.properties.ReadOnlyProperty
  * Values created with [JsonBacked] obtain their object from the generated serializer for [T].
  */
 @Serializable(with = JsonBackedSerializer::class)
-class JsonBacked<out T> @PublishedApi internal constructor(
+open class JsonBacked<out T> protected constructor(
     override val value: T,
     val backingObject: JsonObject,
     override val serialFormat: Json,
 ) : Backed<T> {
 
+    protected constructor(backed: JsonBacked<@UnsafeVariance T>) : this(
+        backed.value,
+        backed.backingObject,
+        backed.serialFormat,
+    )
+
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
         backingObject[key]
             ?.takeUnless { it is JsonNull }
             ?.let { serialFormat.decodeFromJsonElement(serializer, it) }
+
+    companion object {
+        @PublishedApi
+        internal fun <T> create(
+            value: T,
+            backingObject: JsonObject,
+            serialFormat: Json,
+        ): JsonBacked<T> = JsonBacked(value, backingObject, serialFormat)
+    }
 }
 
 /** Creates a JSON-backed envelope from an ordinary serializable value. */
@@ -46,11 +64,23 @@ inline fun <reified T> JsonBacked(
     value: T,
     serialFormat: Json = Json.Default,
 ): JsonBacked<T> =
-    JsonBacked(
+    JsonBacked.create(
         value = value,
         backingObject = serialFormat.encodeToJsonElement(serializer<T>(), value).jsonObject,
         serialFormat = serialFormat,
     )
+
+inline fun <reified T> Json.decodeFromJsonElementBacked(element: JsonElement): JsonBacked<T> =
+    decodeFromJsonElement(element)
+
+inline fun <reified T> Json.encodeToJsonElementBacked(value: JsonBacked<T>): JsonElement =
+    encodeToJsonElement(value)
+
+inline fun <reified T> Json.decodeFromStringBacked(string: String): JsonBacked<T> =
+    decodeFromString(string)
+
+inline fun <reified T> Json.encodeToStringBacked(value: JsonBacked<T>): String =
+    encodeToString(value)
 
 /**
  * Reads an additional property directly from the retained JSON object.
@@ -73,14 +103,15 @@ inline fun <reified V> jsonProperty(
     backedProperty<JsonBacked<*>, V>(key, serializer, defaultValue)
 
 /**
- * Generic serializer used automatically for every [JsonBacked] carrier type.
+ * Reuses [JsonBacked] serialization for a concrete subclass created by [wrap].
  */
-class JsonBackedSerializer<T>(
+open class JsonBackedSerializerTemplate<T, B : JsonBacked<T>>(
     private val valueSerializer: KSerializer<T>,
-) : KSerializer<JsonBacked<T>> {
+    private val wrap: (JsonBacked<T>) -> B,
+) : KSerializer<B> {
     override val descriptor: SerialDescriptor = JsonObject.serializer().descriptor
 
-    override fun deserialize(decoder: Decoder): JsonBacked<T> {
+    override fun deserialize(decoder: Decoder): B {
         decoder as? JsonDecoder
             ?: error("JsonBackedSerializer only works with kotlinx.serialization JSON")
 
@@ -90,14 +121,16 @@ class JsonBackedSerializer<T>(
         } else {
             Json(decoder.json) { ignoreUnknownKeys = true }
         }
-        return JsonBacked(
-            value = valueFormat.decodeFromJsonElement(valueSerializer, backingObject),
-            backingObject = backingObject,
-            serialFormat = decoder.json,
+        return wrap(
+            JsonBacked.create(
+                value = valueFormat.decodeFromJsonElement(valueSerializer, backingObject),
+                backingObject = backingObject,
+                serialFormat = decoder.json,
+            )
         )
     }
 
-    override fun serialize(encoder: Encoder, value: JsonBacked<T>) {
+    override fun serialize(encoder: Encoder, value: B) {
         encoder as? JsonEncoder
             ?: error("JsonBackedSerializer only works with kotlinx.serialization JSON")
         require(encoder.json.hasSameConfigurationAs(value.serialFormat)) {
@@ -106,6 +139,11 @@ class JsonBackedSerializer<T>(
         encoder.encodeJsonElement(value.backingObject)
     }
 }
+
+/** Generic serializer used automatically for [JsonBacked]. */
+class JsonBackedSerializer<T>(
+    valueSerializer: KSerializer<T>,
+) : JsonBackedSerializerTemplate<T, JsonBacked<T>>(valueSerializer, { it })
 
 @OptIn(ExperimentalSerializationApi::class)
 fun Json.hasSameConfigurationAs(other: Json): Boolean {

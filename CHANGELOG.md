@@ -7,6 +7,9 @@
 - Retained unknown JSON properties losslessly even when the caller's `Json` rejects unknown keys.
 - Added reusable JSON flattening for serializable carriers that reuse a base carrier through Kotlin
   interface delegation.
+- Added a reusable serializer template for concrete `JsonBacked` subclasses that delegate carrier
+  interfaces and expose both carrier and backing-only properties directly.
+- Added concise `Json` element and string helpers for generic backed envelopes.
 - Added writable member delegates with caller-controlled setter visibility.
 - Added one-shot, type-safe protected initialization for read-only backed properties.
 - Added automatic validation for non-nullable member delegates.

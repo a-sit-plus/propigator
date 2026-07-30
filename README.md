@@ -62,10 +62,10 @@ the carrier does not declare them. Constructed envelopes obtain their backing ob
 the carrier once.
 
 ```kotlin
-val decoded = json.decodeFromString<JsonBacked<Person>>(
+val decoded = json.decodeFromStringBacked<Person>(
     """{"id":"42","future_claim":{"untouched":true}}"""
 )
-json.encodeToString(decoded) // future_claim is retained
+json.encodeToStringBacked(decoded) // future_claim is retained
 ```
 
 For extensible protocols, keep the semantic contract separate from its standard serializable
@@ -109,11 +109,31 @@ data class ApplicationJoseHeader(
 property during encoding, and reconstructs that nested shape internally during decoding. It works
 without `JsonBacked`; combining both features additionally preserves unknown source properties.
 
+Concrete backed types can delegate the same semantic interface and expose carrier properties
+without `.value`:
+
+```kotlin
+@Serializable(with = JsonBackedApplicationJoseHeader.Serializer::class)
+class JsonBackedApplicationJoseHeader private constructor(
+    backed: JsonBacked<ApplicationJoseHeader>,
+) : JsonBacked<ApplicationJoseHeader>(backed), JoseHeader by backed.value {
+
+    object Serializer :
+        JsonBackedSerializerTemplate<ApplicationJoseHeader, JsonBackedApplicationJoseHeader>(
+            ApplicationJoseHeader.serializer(),
+            ::JsonBackedApplicationJoseHeader,
+        )
+}
+```
+
 Additional typed views can read undeclared claims directly from the retained object:
 
 ```kotlin
 val JsonBacked<JoseHeader>.locale: String? by jsonProperty()
 ```
+
+Both kinds of property then have the same call-site shape: `header.algorithm` comes from the
+carrier interface and `header.locale` comes from the retained backing object.
 
 ## CBOR
 

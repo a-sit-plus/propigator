@@ -24,6 +24,10 @@ interface JoseHeader {
     val keyId: String?
 }
 
+interface GromitHeader : JoseHeader {
+    val numberOfChickens: Int
+}
+
 @Serializable
 data class StandardJoseHeader(
     @SerialName("alg")
@@ -39,8 +43,8 @@ data class StandardJoseHeader(
 data class GromitAuthenticationHeader(
     override val base: StandardJoseHeader,
     @SerialName("number_of_chickens")
-    val numberOfChickens: Int,
-) : JoseHeader by base, JsonFlattened<StandardJoseHeader> {
+    override val numberOfChickens: Int,
+) : GromitHeader, JoseHeader by base, JsonFlattened<StandardJoseHeader> {
 
     @Transient
     override val type: String =
@@ -49,6 +53,23 @@ data class GromitAuthenticationHeader(
     object Serializer :
         JsonFlatteningSerializerTemplate<GromitAuthenticationHeader>(
             GromitAuthenticationHeader.generatedSerializer()
+        )
+}
+
+@Serializable(with = JsonBackedGromitHeader.Serializer::class)
+class JsonBackedGromitHeader private constructor(
+    backed: JsonBacked<GromitAuthenticationHeader>,
+) : JsonBacked<GromitAuthenticationHeader>(backed), GromitHeader by backed.value {
+
+    constructor(
+        value: GromitAuthenticationHeader,
+        serialFormat: Json = Json.Default,
+    ) : this(JsonBacked(value, serialFormat))
+
+    object Serializer :
+        JsonBackedSerializerTemplate<GromitAuthenticationHeader, JsonBackedGromitHeader>(
+            GromitAuthenticationHeader.serializer(),
+            ::JsonBackedGromitHeader,
         )
 }
 
@@ -157,11 +178,11 @@ val JoseHeaderApiTest by matrixSuite {
             )
         )
 
-        val header = json.decodeFromJsonElement<JsonBacked<StandardJoseHeader>>(input)
+        val header = json.decodeFromJsonElementBacked<StandardJoseHeader>(input)
 
         header.value.algorithm shouldBe "ES256"
         header.applicationClaim shouldBe "untouched"
-        json.encodeToJsonElement(header) shouldBe input
+        json.encodeToJsonElementBacked(header) shouldBe input
     }
 
     "decode a downstream carrier and preserve newer claims" {
@@ -174,12 +195,31 @@ val JoseHeaderApiTest by matrixSuite {
             )
         )
 
-        val gromit =
-            json.decodeFromJsonElement<JsonBacked<GromitAuthenticationHeader>>(input)
+        val gromit = json.decodeFromJsonElementBacked<GromitAuthenticationHeader>(input)
 
         gromit.value.algorithm shouldBe "ES256"
         gromit.value.type shouldBe "JWT"
         gromit.value.numberOfChickens shouldBe 42
+        json.encodeToJsonElementBacked(gromit) shouldBe input
+    }
+
+    "expose a backed carrier's semantic interface directly" {
+        val input = JsonObject(
+            mapOf(
+                "alg" to JsonPrimitive("ES256"),
+                "typ" to JsonPrimitive("JWT"),
+                "number_of_chickens" to JsonPrimitive(42),
+                "future_gromit_claim" to JsonPrimitive("still here"),
+                "application_claim" to JsonPrimitive("also direct"),
+            )
+        )
+
+        val gromit = json.decodeFromJsonElement<JsonBackedGromitHeader>(input)
+
+        gromit.algorithm shouldBe "ES256"
+        gromit.type shouldBe "JWT"
+        gromit.numberOfChickens shouldBe 42
+        gromit.applicationClaim shouldBe "also direct"
         json.encodeToJsonElement(gromit) shouldBe input
     }
 
@@ -192,7 +232,7 @@ val JoseHeaderApiTest by matrixSuite {
         )
 
         shouldThrow<SerializationException> {
-            json.decodeFromJsonElement<JsonBacked<GromitAuthenticationHeader>>(input)
+            json.decodeFromJsonElementBacked<GromitAuthenticationHeader>(input)
         }
     }
 

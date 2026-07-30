@@ -52,11 +52,19 @@ val CoreTest by matrixSuite {
             )
         )
 
-        val decoded = json.decodeFromJsonElement<JsonBacked<CoreValue>>(input)
+        val decoded = json.decodeFromJsonElementBacked<CoreValue>(input)
 
         decoded.value shouldBe CoreValue("some string", 1337, defaultString = "from wire")
         decoded.aFloat shouldBe 13.37f
         decoded.backingObject shouldBe input
-        json.encodeToJsonElement(decoded) shouldBe input
+        json.encodeToJsonElementBacked(decoded) shouldBe input
+    }
+
+    "use backed string shortcuts" {
+        val input = """{"aString":"some string","anInt":1337,"future":true}"""
+
+        val decoded = json.decodeFromStringBacked<CoreValue>(input)
+
+        json.encodeToStringBacked(decoded) shouldBe input
     }
 }
