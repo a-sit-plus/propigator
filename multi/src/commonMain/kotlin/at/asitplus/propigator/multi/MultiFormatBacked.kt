@@ -5,6 +5,7 @@
 
 package at.asitplus.propigator.multi
 
+import at.asitplus.propigator.common.NativeBacked
 import at.asitplus.propigator.common.ObjectBackedObject
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialFormat
@@ -12,6 +13,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.serializer
+import kotlin.properties.ReadOnlyProperty
 
 @ExperimentalMultiFormatApi
 data class DecodedObjectBacking(
@@ -37,6 +39,17 @@ interface ObjectFormatAdapter {
     )
 
     fun backingMetadata(backingObject: Map<*, *>): Any? = null
+
+    fun <T> decodeValue(
+        backing: DecodedObjectBacking,
+        serializer: KSerializer<T>,
+    ): T = error("$this does not support serializable carriers")
+
+    fun <T> encodeValue(
+        serialFormat: SerialFormat,
+        value: T,
+        serializer: KSerializer<T>,
+    ): DecodedObjectBacking = error("$this does not support serializable carriers")
 
     fun <V> decodeElement(
         serialFormat: SerialFormat,
@@ -130,6 +143,127 @@ data class MultiFormatKey(
 }
 
 @ExperimentalMultiFormatApi
+open class MultiFormatBacked<out T> protected constructor(
+    override val value: T,
+    override val backingObject: Map<Any, Any>,
+    override val serialFormat: SerialFormat,
+    internal val objectFormats: ObjectFormatSet,
+    internal val backingMetadata: Any?,
+) : NativeBacked<T, Map<Any, Any>, SerialFormat> {
+    internal val objectFormat: ObjectFormatAdapter = objectFormats.adapterFor(serialFormat)
+
+    protected constructor(backed: MultiFormatBacked<@UnsafeVariance T>) : this(
+        backed.value,
+        backed.backingObject,
+        backed.serialFormat,
+        backed.objectFormats,
+        backed.backingMetadata,
+    )
+
+    override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
+        backingObject[objectFormat.defaultKey(key)]
+            ?.takeUnless { objectFormat.isFormatNull(it) }
+            ?.let { objectFormat.decodeElement(serialFormat, it, serializer) }
+
+    companion object {
+        @PublishedApi
+        internal fun <T> create(
+            value: T,
+            backingObject: Map<*, *>,
+            serialFormat: SerialFormat,
+            objectFormats: ObjectFormatSet,
+            backingMetadata: Any?,
+        ): MultiFormatBacked<T> = MultiFormatBacked(
+            value,
+            backingObject.entries.associate { (key, element) ->
+                requireNotNull(key) to requireNotNull(element)
+            },
+            serialFormat,
+            objectFormats,
+            backingMetadata,
+        )
+    }
+}
+
+@ExperimentalMultiFormatApi
+inline fun <reified T> MultiFormatBacked(
+    value: T,
+    serialFormat: SerialFormat,
+    objectFormats: ObjectFormatSet,
+): MultiFormatBacked<T> =
+    MultiFormatBacked(value, serializer(), serialFormat, objectFormats)
+
+@ExperimentalMultiFormatApi
+fun <T> MultiFormatBacked(
+    value: T,
+    serializer: KSerializer<T>,
+    serialFormat: SerialFormat,
+    objectFormats: ObjectFormatSet,
+): MultiFormatBacked<T> {
+    val adapter = objectFormats.adapterFor(serialFormat)
+    val backing = adapter.encodeValue(serialFormat, value, serializer.forFormat(serialFormat))
+    return MultiFormatBacked.create(
+        value,
+        backing.backingObject,
+        serialFormat,
+        objectFormats,
+        adapter.backingMetadata(backing.backingObject),
+    )
+}
+
+@PublishedApi
+internal fun <V> createMultiFormatProperty(
+    bindings: Array<out ObjectFormatPropertyBinding<V>>,
+    serializer: KSerializer<V>,
+    defaultValue: (() -> V)?,
+): ReadOnlyProperty<MultiFormatBacked<*>, V> {
+    require(bindings.map { it.format }.distinct().size == bindings.size) {
+        "A property may define only one binding per format"
+    }
+    return ReadOnlyProperty { owner, property ->
+        val binding = bindings.singleOrNull {
+            it.format === owner.objectFormat || it.format == owner.objectFormat
+        }
+        val key = binding?.key ?: owner.objectFormat.defaultKey(property.name)
+        @Suppress("UNCHECKED_CAST")
+        val actualSerializer =
+            (binding as? ObjectFormatProperty<V>)?.serializer ?: serializer
+        owner.backingObject[key]
+            ?.takeUnless { owner.objectFormat.isFormatNull(it) }
+            ?.let { owner.objectFormat.decodeElement(owner.serialFormat, it, actualSerializer) }
+            ?: multiFormatMissingValue(key, actualSerializer, defaultValue)
+    }
+}
+
+private fun <V> multiFormatMissingValue(
+    key: Any,
+    serializer: KSerializer<V>,
+    defaultValue: (() -> V)?,
+): V {
+    if (defaultValue != null) return defaultValue()
+    if (serializer.descriptor.isNullable) {
+        @Suppress("UNCHECKED_CAST")
+        return null as V
+    }
+    throw NoSuchElementException("Missing property: $key")
+}
+
+@ExperimentalMultiFormatApi
+inline fun <reified V> multiFormatProperty(
+    vararg bindings: ObjectFormatPropertyBinding<V>,
+    serializer: KSerializer<V> = serializer(),
+): ReadOnlyProperty<MultiFormatBacked<*>, V> =
+    createMultiFormatProperty(bindings, serializer, null)
+
+@ExperimentalMultiFormatApi
+inline fun <reified V> multiFormatProperty(
+    vararg bindings: ObjectFormatPropertyBinding<V>,
+    serializer: KSerializer<V> = serializer(),
+    defaultValue: V,
+): ReadOnlyProperty<MultiFormatBacked<*>, V> =
+    createMultiFormatProperty(bindings, serializer) { defaultValue }
+
+@ExperimentalMultiFormatApi
 abstract class MultiFormatBackedObject(
     backingObject: Map<*, *>,
     final override val serialFormat: SerialFormat,
@@ -213,7 +347,67 @@ interface MultiFormatSerializer<T> : KSerializer<T> {
 }
 
 @ExperimentalMultiFormatApi
-open class MultiFormatBackedSerializerTemplate<T : MultiFormatBackedObject>(
+open class MultiFormatBackedSerializerTemplate<T, B : MultiFormatBacked<T>>(
+    private val valueSerializer: KSerializer<T>,
+    private val objectFormats: ObjectFormatSet,
+    private val wrap: (MultiFormatBacked<T>) -> B,
+) : MultiFormatSerializer<B> {
+    override val descriptor: SerialDescriptor = valueSerializer.descriptor
+
+    override fun serializerFor(serialFormat: SerialFormat): KSerializer<B> {
+        val expectedAdapter = objectFormats.adapterFor(serialFormat)
+        return object : KSerializer<B> {
+            override val descriptor: SerialDescriptor = expectedAdapter.descriptor
+
+            override fun deserialize(decoder: Decoder): B {
+                requireMatchingAdapter(objectFormats.adapterFor(decoder), expectedAdapter)
+                return this@MultiFormatBackedSerializerTemplate.deserialize(decoder)
+            }
+
+            override fun serialize(encoder: Encoder, value: B) {
+                requireMatchingAdapter(objectFormats.adapterFor(encoder), expectedAdapter)
+                this@MultiFormatBackedSerializerTemplate.serialize(encoder, value)
+            }
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): B {
+        val adapter = objectFormats.adapterFor(decoder)
+        val decoded = adapter.decodeObject(decoder)
+        return wrap(
+            MultiFormatBacked.create(
+                value = adapter.decodeValue(
+                    decoded,
+                    valueSerializer.forFormat(decoded.serialFormat),
+                ),
+                backingObject = decoded.backingObject,
+                serialFormat = decoded.serialFormat,
+                objectFormats = objectFormats,
+                backingMetadata = adapter.backingMetadata(decoded.backingObject),
+            )
+        )
+    }
+
+    override fun serialize(encoder: Encoder, value: B) {
+        val adapter = objectFormats.adapterFor(encoder)
+        require(adapter === value.objectFormat || adapter == value.objectFormat) {
+            "A ${value.objectFormat}-backed value cannot be encoded as $adapter"
+        }
+        adapter.encodeObject(
+            encoder,
+            value.backingObject,
+            value.serialFormat,
+            value.backingMetadata,
+        )
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun <T> KSerializer<T>.forFormat(serialFormat: SerialFormat): KSerializer<T> =
+    (this as? MultiFormatSerializer<T>)?.serializerFor(serialFormat) ?: this
+
+@ExperimentalMultiFormatApi
+open class MultiFormatBackedObjectSerializerTemplate<T : MultiFormatBackedObject>(
     override val descriptor: SerialDescriptor,
     private val objectFormats: ObjectFormatSet,
     private val create: (Map<*, *>, SerialFormat) -> T,
@@ -225,12 +419,12 @@ open class MultiFormatBackedSerializerTemplate<T : MultiFormatBackedObject>(
 
             override fun deserialize(decoder: Decoder): T {
                 requireMatchingAdapter(objectFormats.adapterFor(decoder), expectedAdapter)
-                return this@MultiFormatBackedSerializerTemplate.deserialize(decoder)
+                return this@MultiFormatBackedObjectSerializerTemplate.deserialize(decoder)
             }
 
             override fun serialize(encoder: Encoder, value: T) {
                 requireMatchingAdapter(objectFormats.adapterFor(encoder), expectedAdapter)
-                this@MultiFormatBackedSerializerTemplate.serialize(encoder, value)
+                this@MultiFormatBackedObjectSerializerTemplate.serialize(encoder, value)
             }
         }
     }

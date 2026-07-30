@@ -5,26 +5,41 @@
 
 package at.asitplus.propigator.cbor
 
-import at.asitplus.propigator.common.ObjectBacked
-import at.asitplus.propigator.common.ObjectBackedObject
+import at.asitplus.propigator.common.NativeBacked
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.cbor.CborDecoder
 import kotlinx.serialization.cbor.CborElement
 import kotlinx.serialization.cbor.CborEncoder
+import kotlinx.serialization.cbor.CborInteger
 import kotlinx.serialization.cbor.CborMap
 import kotlinx.serialization.cbor.CborNull
 import kotlinx.serialization.cbor.CborString
+import kotlinx.serialization.cbor.decodeFromCborElement
+import kotlinx.serialization.cbor.encodeToCborElement
+import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.serializer
 import kotlin.properties.ReadOnlyProperty
 
-interface CborBacked : ObjectBacked {
-    val backingObject: CborMap
-    override val serialFormat: Cbor
+/** A serializable value together with its complete native CBOR map. */
+@Serializable(with = CborBackedSerializer::class)
+open class CborBacked<out T> protected constructor(
+    override val value: T,
+    override val backingObject: CborMap,
+    override val serialFormat: Cbor,
+) : NativeBacked<T, CborMap, Cbor> {
+
+    protected constructor(backed: CborBacked<@UnsafeVariance T>) : this(
+        backed.value,
+        backed.backingObject,
+        backed.serialFormat,
+    )
 
     fun <V> getElement(key: CborElement, serializer: KSerializer<V>): V? =
         backingObject[key]
@@ -34,74 +49,46 @@ interface CborBacked : ObjectBacked {
     override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
         getElement(CborString(key), serializer)
 
-}
-
-abstract class CborBackedObject(
-    backingObject: CborMap,
-    final override val serialFormat: Cbor = Cbor.Default,
-) : ObjectBackedObject<CborElement>(), CborBacked {
-    final override var backingObject: CborMap = backingObject
-        private set
-
-    protected inline fun <reified V> cborProperty(
-        key: CborElement? = null,
-        serializer: KSerializer<V> = serializer(),
-    ): BackedProperty<V> = backedProperty(key, serializer)
-
-    protected inline fun <reified V> cborProperty(
-        key: CborElement? = null,
-        serializer: KSerializer<V> = serializer(),
-        defaultValue: V,
-    ): BackedProperty<V> = backedProperty(key, serializer, defaultValue)
-
-    protected inline fun <reified V> cborProperty(
-        key: String,
-        serializer: KSerializer<V> = serializer(),
-        keyTags: ULongArray = ulongArrayOf(),
-    ): BackedProperty<V> =
-        backedProperty(cborStringKey(key, keyTags), serializer)
-
-    protected inline fun <reified V> cborProperty(
-        key: String,
-        serializer: KSerializer<V> = serializer(),
-        keyTags: ULongArray = ulongArrayOf(),
-        defaultValue: V,
-    ): BackedProperty<V> =
-        backedProperty(cborStringKey(key, keyTags), serializer, defaultValue)
-
-    protected inline fun <reified V> cborProperty(
-        keyTags: ULongArray,
-        serializer: KSerializer<V> = serializer(),
-    ): BackedProperty<V> =
-        backedProperty(serializer) { cborStringKey(it, keyTags) }
-
-    protected inline fun <reified V> cborProperty(
-        keyTags: ULongArray,
-        serializer: KSerializer<V> = serializer(),
-        defaultValue: V,
-    ): BackedProperty<V> =
-        backedProperty(serializer, defaultValue) { cborStringKey(it, keyTags) }
-
-    protected final override fun keyFromPropertyName(name: String): CborElement = CborString(name)
-
-    protected final override fun <V> readElement(key: CborElement, serializer: KSerializer<V>): V? =
-        getElement(key, serializer)
-
-    final override fun <V> getElement(key: String, serializer: KSerializer<V>): V? =
-        readElement(CborString(key), serializer)
-
-    protected final override fun <V> writeElement(key: CborElement, serializer: KSerializer<V>, value: V) {
-        backingObject = CborMap(
-            backingObject + (key to serialFormat.encodeToCborElement(serializer, value)),
-            backingObject.tags,
-        )
+    companion object {
+        @PublishedApi
+        internal fun <T> create(
+            value: T,
+            backingObject: CborMap,
+            serialFormat: Cbor,
+        ): CborBacked<T> = CborBacked(value, backingObject, serialFormat)
     }
 }
 
-@PublishedApi
-@OptIn(ExperimentalUnsignedTypes::class)
-internal fun cborStringKey(name: String, tags: ULongArray): CborString =
-    CborString(name, *tags)
+/** Creates a CBOR-backed envelope from an ordinary serializable value. */
+inline fun <reified T> CborBacked(
+    value: T,
+    serialFormat: Cbor = Cbor.Default,
+): CborBacked<T> = CborBacked(value, serializer(), serialFormat)
+
+/** Creates a CBOR-backed envelope using an explicitly selected serializer. */
+fun <T> CborBacked(
+    value: T,
+    serializer: KSerializer<T>,
+    serialFormat: Cbor = Cbor.Default,
+): CborBacked<T> =
+    CborBacked.create(
+        value = value,
+        backingObject = serialFormat.encodeToCborElement(serializer, value) as? CborMap
+            ?: error("CborBacked only supports values encoded as CBOR maps"),
+        serialFormat = serialFormat,
+    )
+
+inline fun <reified T> Cbor.decodeFromCborElementBacked(element: CborElement): CborBacked<T> =
+    decodeFromCborElement(element)
+
+inline fun <reified T> Cbor.encodeToCborElementBacked(value: CborBacked<T>): CborElement =
+    encodeToCborElement(value)
+
+inline fun <reified T> Cbor.decodeFromByteArrayBacked(bytes: ByteArray): CborBacked<T> =
+    decodeFromByteArray(bytes)
+
+inline fun <reified T> Cbor.encodeToByteArrayBacked(value: CborBacked<T>): ByteArray =
+    encodeToByteArray(value)
 
 @PublishedApi
 internal fun <V> createCborBackedProperty(
@@ -109,14 +96,10 @@ internal fun <V> createCborBackedProperty(
     serializer: KSerializer<V>,
     defaultValue: (() -> V)?,
     keyFromPropertyName: (String) -> CborElement = { CborString(it) },
-): ReadOnlyProperty<CborBacked, V> = ReadOnlyProperty { owner, property ->
+): ReadOnlyProperty<CborBacked<*>, V> = ReadOnlyProperty { owner, property ->
     val actualKey = key ?: keyFromPropertyName(property.name)
-    val element = owner.getElement(actualKey, serializer)
-    if (element == null) {
-        cborMissingValue(actualKey, serializer, defaultValue)
-    } else {
-        element
-    }
+    owner.getElement(actualKey, serializer)
+        ?: cborMissingValue(actualKey, serializer, defaultValue)
 }
 
 private fun <V> cborMissingValue(
@@ -133,78 +116,85 @@ private fun <V> cborMissingValue(
 }
 
 /**
- * Optional fields are backed as nullable type.
- * Example
- * ```val foo: String? by cborProperty("foo")```
+ * Reads an additional property directly from the retained CBOR map.
  *
- * Required fields are backed as strict types
- * ```val bar: Bar by cborProperty("bar_obj", CustomBarSerializer)```
- *
- * The canonical key type is [CborElement]. With no key, the Kotlin property name becomes an
- * untagged [CborString]. String and tagged-string overloads are conveniences for that common case.
- * Serializing tagged keys requires `Cbor { encodeKeyTags = true }`.
+ * The canonical key type is [CborElement]. String and tagged-string overloads cover the common
+ * cases. Serializing tagged keys requires `Cbor { encodeKeyTags = true }`.
  */
 inline fun <reified V> cborProperty(
     key: CborElement? = null,
     serializer: KSerializer<V> = serializer(),
-): ReadOnlyProperty<CborBacked, V> =
+): ReadOnlyProperty<CborBacked<*>, V> =
     createCborBackedProperty(key, serializer, null)
 
 inline fun <reified V> cborProperty(
     key: CborElement? = null,
     serializer: KSerializer<V> = serializer(),
     defaultValue: V,
-): ReadOnlyProperty<CborBacked, V> =
-    createCborBackedProperty(key, serializer, defaultValue = { defaultValue })
+): ReadOnlyProperty<CborBacked<*>, V> =
+    createCborBackedProperty(key, serializer, { defaultValue })
 
 inline fun <reified V> cborProperty(
     key: String,
     serializer: KSerializer<V> = serializer(),
     keyTags: ULongArray = ulongArrayOf(),
-): ReadOnlyProperty<CborBacked, V> =
-    createCborBackedProperty(cborStringKey(key, keyTags), serializer, null)
+): ReadOnlyProperty<CborBacked<*>, V> =
+    createCborBackedProperty(CborString(key, *keyTags), serializer, null)
 
 inline fun <reified V> cborProperty(
     key: String,
     serializer: KSerializer<V> = serializer(),
     keyTags: ULongArray = ulongArrayOf(),
     defaultValue: V,
-): ReadOnlyProperty<CborBacked, V> =
-    createCborBackedProperty(
-        cborStringKey(key, keyTags),
-        serializer,
-        defaultValue = { defaultValue },
-    )
+): ReadOnlyProperty<CborBacked<*>, V> =
+    createCborBackedProperty(CborString(key, *keyTags), serializer, { defaultValue })
 
 inline fun <reified V> cborProperty(
     keyTags: ULongArray,
     serializer: KSerializer<V> = serializer(),
-): ReadOnlyProperty<CborBacked, V> =
-    createCborBackedProperty(null, serializer, null) { cborStringKey(it, keyTags) }
+): ReadOnlyProperty<CborBacked<*>, V> =
+    createCborBackedProperty(null, serializer, null) { CborString(it, *keyTags) }
 
 inline fun <reified V> cborProperty(
     keyTags: ULongArray,
     serializer: KSerializer<V> = serializer(),
     defaultValue: V,
-): ReadOnlyProperty<CborBacked, V> =
+): ReadOnlyProperty<CborBacked<*>, V> =
     createCborBackedProperty(null, serializer, { defaultValue }) {
-        cborStringKey(it, keyTags)
+        CborString(it, *keyTags)
     }
 
-open class CborBackedSerializerTemplate<T : CborBacked>(
-    private val create: (CborMap, Cbor) -> T,
-) : KSerializer<T> {
+/** Reuses [CborBacked] serialization for a concrete subclass created by [wrap]. */
+open class CborBackedSerializerTemplate<T, B : CborBacked<T>>(
+    private val valueSerializer: KSerializer<T>,
+    private val wrap: (CborBacked<T>) -> B,
+) : KSerializer<B> {
     override val descriptor: SerialDescriptor = CborMap.serializer().descriptor
 
-    override fun deserialize(decoder: Decoder): T {
+    override fun deserialize(decoder: Decoder): B {
         decoder as? CborDecoder
             ?: error("CborBackedSerializer only works with kotlinx.serialization CBOR")
         val backingObject = decoder.decodeCborElement() as? CborMap
             ?: error("CborBackedSerializer only supports CBOR maps")
-        return create(backingObject, decoder.cbor).also { it.validate() }
+        val valueFormat = if (decoder.cbor.configuration.ignoreUnknownKeys) {
+            decoder.cbor
+        } else {
+            Cbor(decoder.cbor) { ignoreUnknownKeys = true }
+        }
+        val carrierObject = CborMap(
+            backingObject.filterKeys { it is CborString || it is CborInteger },
+            backingObject.tags,
+        )
+        return wrap(
+            CborBacked.create(
+                value = valueFormat.decodeFromCborElement(valueSerializer, carrierObject),
+                backingObject = backingObject,
+                serialFormat = decoder.cbor,
+            )
+        )
     }
 
-    override fun serialize(encoder: Encoder, value: T) {
+    override fun serialize(encoder: Encoder, value: B) {
         encoder as? CborEncoder
             ?: error("CborBackedSerializer only works with kotlinx.serialization CBOR")
         require(encoder.cbor.hasSameConfigurationAs(value.serialFormat)) {
@@ -213,6 +203,11 @@ open class CborBackedSerializerTemplate<T : CborBacked>(
         encoder.encodeCborElement(value.backingObject)
     }
 }
+
+/** Generic serializer used automatically for [CborBacked]. */
+class CborBackedSerializer<T>(
+    valueSerializer: KSerializer<T>,
+) : CborBackedSerializerTemplate<T, CborBacked<T>>(valueSerializer, { it })
 
 @OptIn(ExperimentalSerializationApi::class)
 fun Cbor.hasSameConfigurationAs(other: Cbor): Boolean {

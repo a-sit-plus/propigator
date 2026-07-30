@@ -11,6 +11,11 @@
   interfaces and expose both carrier and backing-only properties directly.
 - Added concise `Json` element and string helpers for generic backed envelopes.
 - Added explicit-serializer construction for `JsonBacked` envelopes.
+- Reworked CBOR around ordinary serializable carriers in a generic `CborBacked<T>` envelope while
+  preserving native keys and tags.
+- Added generic `MultiFormatBacked<T>` and `BorsonBacked<T>` carrier envelopes, cross-format
+  flattening, concrete subclass templates, and concise JSON/CBOR helpers.
+- Pulled native-envelope and flattened-carrier contracts into `core`.
 - Added writable member delegates with caller-controlled setter visibility.
 - Added one-shot, type-safe protected initialization for read-only backed properties.
 - Added automatic validation for non-nullable member delegates.

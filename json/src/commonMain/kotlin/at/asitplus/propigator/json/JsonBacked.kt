@@ -3,7 +3,7 @@
 
 package at.asitplus.propigator.json
 
-import at.asitplus.propigator.common.Backed
+import at.asitplus.propigator.common.NativeBacked
 import at.asitplus.propigator.common.backedProperty
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -34,9 +34,9 @@ import kotlin.properties.ReadOnlyProperty
 @Serializable(with = JsonBackedSerializer::class)
 open class JsonBacked<out T> protected constructor(
     override val value: T,
-    val backingObject: JsonObject,
+    override val backingObject: JsonObject,
     override val serialFormat: Json,
-) : Backed<T> {
+) : NativeBacked<T, JsonObject, Json> {
 
     protected constructor(backed: JsonBacked<@UnsafeVariance T>) : this(
         backed.value,

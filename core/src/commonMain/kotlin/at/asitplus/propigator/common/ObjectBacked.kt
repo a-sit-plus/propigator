@@ -24,6 +24,17 @@ interface Backed<out T> : ObjectBacked {
     val value: T
 }
 
+/** A typed value paired with its complete native representation and owning format. */
+interface NativeBacked<out T, out O, out F : SerialFormat> : Backed<T> {
+    val backingObject: O
+    override val serialFormat: F
+}
+
+/** A serializable carrier that reuses another carrier as its flattened base. */
+interface Flattened<out B> {
+    val base: B
+}
+
 abstract class ObjectBackedObject<K> : ObjectBacked {
     private val requiredPropertyChecks = mutableListOf<() -> Unit>()
     private val propertyInitializers = mutableMapOf<String, (Any?) -> Unit>()

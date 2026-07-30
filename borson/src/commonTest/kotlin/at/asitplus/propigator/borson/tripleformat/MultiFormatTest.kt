@@ -22,7 +22,7 @@ import at.asitplus.propigator.borson.JsonObjectFormat
 import at.asitplus.propigator.common.validating
 import at.asitplus.propigator.multi.DecodedObjectBacking
 import at.asitplus.propigator.multi.MultiFormatBackedObject
-import at.asitplus.propigator.multi.MultiFormatBackedSerializerTemplate
+import at.asitplus.propigator.multi.MultiFormatBackedObjectSerializerTemplate as MultiFormatBackedSerializerTemplate
 import at.asitplus.propigator.multi.ObjectFormatAdapter
 import at.asitplus.propigator.multi.objectFormats
 import at.asitplus.propigator.multi.property

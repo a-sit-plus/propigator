@@ -24,10 +24,10 @@ Use ordinary `@Serializable` data classes when you own the complete schema. Use 
 
 | Module | Purpose |
 |---|---|
-| `core` | Format-neutral backing, delegates, and validation |
-| `json` | JSON-backed objects and delegates |
-| `cbor` | CBOR-backed objects and delegates, including native CBOR keys |
-| `multi` | Experimental integrated multi-format backing |
+| `core` | Format-neutral carrier, backing, flattening, delegates, and validation contracts |
+| `json` | Generic JSON carrier envelopes and native JSON property views |
+| `cbor` | Generic CBOR carrier envelopes and native CBOR property views |
+| `multi` | Experimental format-dispatching carrier envelopes and advanced delegated backing |
 | `borson` | Experimental JSON/CBOR adapters for `multi`, automatically supplied by Modulator |
 
 `json` and `cbor` each depend on `core`, but not on each other. Neither requires the experimental multi-format modules.
@@ -148,21 +148,25 @@ kotlin {
 ```
 
 ```kotlin
-@Serializable(with = Claims.Companion::class)
-class Claims private constructor(
-    backingObject: CborMap,
-    serialFormat: Cbor,
-) : CborBackedObject(backingObject, serialFormat) {
+@Serializable
+data class Claims(
+    @CborLabel(1)
+    val algorithm: String,
+    val issuer: String? = null,
+)
 
-    val algorithm: String by cborProperty(CborInteger(1))
+val claims = CborBacked(Claims("ES256"), cbor)
+val encoded = cbor.encodeToByteArrayBacked(claims)
+val decoded = cbor.decodeFromByteArrayBacked<Claims>(encoded)
 
-    val issuer: String by cborProperty()
-
-    companion object : CborBackedSerializerTemplate<Claims>(::Claims)
-}
+val CborBacked<Claims>.applicationClaim: String? by
+    cborProperty(CborInteger(-70_000L))
 ```
 
-The canonical key type is `CborElement`, so integer, tagged, and complex keys remain native CBOR values. String-key and tagged-string overloads cover the common cases.
+`CborBacked<T>` mirrors `JsonBacked<T>`, including explicit-serializer construction, concrete
+subclass templates, and element/byte-array helpers. Its retained `CborMap` preserves integer,
+tagged, complex, and unknown keys plus map tags. Complex keys are kept out of the generated carrier
+decoder but remain untouched in the backing map.
 
 ## Experimental integrated multi-format support
 
@@ -183,50 +187,46 @@ kotlin {
 }
 ```
 
-Modulator automatically adds `borson` when both carriers are present. It supplies `JsonObjectFormat`, `CborMapFormat`, and `JsonCborFormats`:
+Modulator automatically adds `borson` when both carriers are present. Ordinary multi-format values
+use a single serializable carrier and a generic `BorsonBacked<T>` envelope:
 
 ```kotlin
 import at.asitplus.propigator.borson.*
-import at.asitplus.propigator.common.validating
-import at.asitplus.propigator.multi.*
 
 @OptIn(ExperimentalMultiFormatApi::class)
-@Serializable(with = XoseHeader.Companion::class)
-class XoseHeader private constructor(
-    backingObject: Map<*, *>,
-    serialFormat: SerialFormat,
-) : MultiFormatBackedObject(backingObject, serialFormat, JsonCborFormats) {
+@Serializable
+data class XoseHeader(
+    @SerialName("alg")
+    @CborLabel(1)
+    val algorithm: String,
+)
 
-    val algorithm: String by multiFormatProperty(
-        JsonObjectFormat propertyKey "alg",
-        CborMapFormat propertyKey CborInteger(1),
+val jsonHeader = BorsonBacked(XoseHeader("ES256"), json)
+val cborHeader = BorsonBacked(XoseHeader("ES256"), cbor)
+```
+
+`BorsonFlatteningSerializerTemplate` flattens delegated base carriers in both formats.
+`BorsonBackedSerializerTemplate` gives concrete backed subclasses the same direct-property pattern
+as JSON and CBOR. Unknown values remain lossless in their native source format.
+
+Backing-only properties may still select native keys and serializers by format:
+
+```kotlin
+val MultiFormatBacked<XoseHeader>.applicationClaim: String? by
+    multiFormatProperty<String?>(
+        JsonObjectFormat propertyKey "application_claim",
+        CborMapFormat propertyKey CborInteger(-70_000L),
     )
-
-    companion object : MultiFormatBackedSerializerTemplate<XoseHeader>(
-        JsonObject.serializer().descriptor,
-        JsonCborFormats,
-        ::XoseHeader,
-    )
-}
 ```
 
-Format sets compose:
+For formats that ordinary carrier annotations cannot express, the advanced
+`MultiFormatBackedObject` API remains available. Format sets compose, individual properties may
+override their serializer, and format-specific descriptors come from `serializerFor(format)`:
 
 ```kotlin
-val threeFormats = JsonCborFormats + cborThirdFormat
-```
+val threeFormats = JsonCborFormats + derFormat
 
-Formats that require their own descriptor use the matching serializer:
-
-```kotlin
-val serializer = XoseHeader.Serializer.serializerFor(cbor)
-val encoded = cbor.encodeToByteArray(serializer, header)
-```
-
-Individual formats may also override a property's inferred serializer:
-
-```kotlin
-var count: Int by multiFormatProperty(
+val count: Int by multiFormatProperty(
     JsonObjectFormat propertyKey "count",
     DerObjectFormat.property(
         key = Asn1.Int(1),
@@ -235,14 +235,14 @@ var count: Int by multiFormatProperty(
 )
 ```
 
-Known properties may use native keys per format. Unknown values remain lossless in their original format; Propigator does not invent a mapping from arbitrary CBOR keys to JSON strings.
+Propigator never transcodes arbitrary unknown JSON, CBOR, or ASN.1 entries.
 
 ## Limitations
 
 - Backing values must be object/map shaped.
 - A backed instance retains its source format; multi-format support is not transcoding.
 - The annotated serializer has one default descriptor; use `serializerFor(format)` when a format needs its own.
-- Delegated properties are runtime accessors, not generated serialization fields.
+- Advanced delegated properties are runtime accessors, not generated serialization fields.
 
 ---
 

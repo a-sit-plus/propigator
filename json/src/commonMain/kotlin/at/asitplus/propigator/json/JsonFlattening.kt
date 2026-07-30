@@ -3,6 +3,7 @@
 
 package at.asitplus.propigator.json
 
+import at.asitplus.propigator.common.Flattened
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
@@ -20,9 +21,7 @@ import kotlinx.serialization.json.jsonObject
 /**
  * Marks a serializable carrier whose [base] object is flattened into the carrier's JSON object.
  */
-interface JsonFlattened<out B> {
-    val base: B
-}
+typealias JsonFlattened<B> = Flattened<B>
 
 /**
  * Flattens the `base` property produced by a retained generated serializer.
@@ -31,7 +30,7 @@ interface JsonFlattened<out B> {
  * and validate both the base and extending carrier.
  */
 @OptIn(ExperimentalSerializationApi::class)
-open class JsonFlatteningSerializerTemplate<T : JsonFlattened<*>>(
+open class JsonFlatteningSerializerTemplate<T : Flattened<*>>(
     private val generatedSerializer: KSerializer<T>,
 ) : KSerializer<T> {
     override val descriptor: SerialDescriptor = generatedSerializer.descriptor
