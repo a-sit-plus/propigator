@@ -19,10 +19,9 @@ jobs:
         run: |
           ./gradlew clean
           ./gradlew :core:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :multi:publishToSonatype closeSonatypeStagingRepository
           ./gradlew :json:publishToSonatype closeSonatypeStagingRepository
           ./gradlew :cbor:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :borson:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :multi:publishToSonatype closeSonatypeStagingRepository
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.PUBLISH_SIGNING_KEYID }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.PUBLISH_SIGNING_KEY }}

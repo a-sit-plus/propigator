@@ -15,10 +15,6 @@
     {
       "module": "cbor",
       "artifactName": "cbor"
-    },
-    {
-      "module": "borson",
-      "artifactName": "borson"
     }
   ]
 }

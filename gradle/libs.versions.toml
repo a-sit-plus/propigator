@@ -5,7 +5,6 @@ testballoon = "1.0.1-K2.4.0"
 asp="20260701"
 agp = "8.12.3"
 spotless = "8.2.1"
-modulator = "0.1.0"
 awesn1 = "0.6.1"
 
 [libraries]
@@ -20,4 +19,3 @@ awesn1-kxs = { module = "at.asitplus.awesn1:kxs", version.ref = "awesn1" }
 [plugins]
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 asp = { id = "at.asitplus.gradle.conventions", version.ref = "asp" }
-modulator = { id = "at.asitplus.gradle.modulator", version.ref = "modulator" }

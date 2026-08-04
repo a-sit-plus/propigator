@@ -18,6 +18,11 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core"))
+            api(project(":json"))
+            api(project(":cbor"))
+        }
+        commonTest.dependencies {
+            implementation(libs.awesn1.kxs)
         }
     }
 }

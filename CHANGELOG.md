@@ -26,7 +26,7 @@
 - Added per-format property serializers and format-specific whole-object serializers.
 - Made backed serializer templates open so companions can inherit them directly.
 - Added immutable downstream specialization examples for JOSE and COSE.
-- Split integrated multi-format support into the experimental `multi` module and Modulator-powered `borson` bridge.
+- Packaged integrated multi-format support and its JSON/CBOR bridge in the experimental `multi` module.
 - Added delegated property defaults that do not alter serialized backing objects.
 - Temporarily disabled SBOM generation due to incorrect native carrier packaging in SBOMbastic 0.0.3.
 - Removed the unfinished YAML module, whole-object slices, and strict unions.

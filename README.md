@@ -27,10 +27,9 @@ Use ordinary `@Serializable` data classes when you own the complete schema. Use 
 | `core` | Format-neutral carrier, backing, flattening, delegates, and validation contracts |
 | `json` | Generic JSON carrier envelopes and native JSON property views |
 | `cbor` | Generic CBOR carrier envelopes and native CBOR property views |
-| `multi` | Experimental format-dispatching carrier envelopes and advanced delegated backing |
-| `borson` | Experimental JSON/CBOR adapters for `multi`, automatically supplied by Modulator |
+| `multi` | Experimental format-dispatching carrier envelopes, JSON/CBOR adapters, and advanced delegated backing |
 
-`json` and `cbor` each depend on `core`, but not on each other. Neither requires the experimental multi-format modules.
+`json` and `cbor` each depend on `core`, but not on each other. Neither requires the experimental `multi` module.
 
 ## JSON
 
@@ -174,28 +173,23 @@ decoder but remain untouched in the backing map.
 
 ## Experimental integrated multi-format support
 
-Apply [Modulator](https://github.com/a-sit-plus/modulator) and add both carrier modules:
+Add the integrated multi-format module:
 
 ```kotlin
-plugins {
-    id("at.asitplus.gradle.modulator") version "0.1.0"
-}
-
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("at.asitplus.propigator:json:<version>")
-            implementation("at.asitplus.propigator:cbor:<version>")
+            implementation("at.asitplus.propigator:multi:<version>")
         }
     }
 }
 ```
 
-Modulator automatically adds `borson` when both carriers are present. Ordinary multi-format values
-use a single serializable carrier and a generic `BorsonBacked<T>` envelope:
+`multi` exposes the JSON and CBOR carrier modules transitively. Ordinary multi-format values use a
+single serializable carrier and a generic `BorsonBacked<T>` envelope:
 
 ```kotlin
-import at.asitplus.propigator.borson.*
+import at.asitplus.propigator.multi.*
 
 @OptIn(ExperimentalMultiFormatApi::class)
 @Serializable
