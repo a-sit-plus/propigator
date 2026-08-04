@@ -11,294 +11,236 @@
 [![A-SIT Plus Official](https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg)](https://plus.a-sit.at/open-source.html)
 [![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Kotlin](https://img.shields.io/badge/kotlin-multiplatform-orange.svg?logo=kotlin)](http://kotlinlang.org)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.3.20-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![Java](https://img.shields.io/badge/java-17+-blue.svg?logo=OPENJDK)](https://www.oracle.com/java/technologies/downloads/#java17)
-[![Maven Central](https://img.shields.io/maven-central/v/at.asitplus.propigator/common)](https://mvnrepository.com/artifact/at.asitplus.propigator/common)
+[![Maven Central](https://img.shields.io/maven-central/v/at.asitplus.propigator/core)](https://mvnrepository.com/artifact/at.asitplus.propigator/core)
 
 </div>
 
-Propigator is a Kotlin Multiplatform library for typed, read-only views over raw object-shaped data. Use it when your code only understands part of a JSON or YAML object, but must preserve unknown fields when the object is re-emitted.
+Propigator exposes typed Kotlin properties over extensible object-shaped data. Unknown properties remain in the backing object and survive serialization unchanged.
 
-Propigator provides wrappers for:
+Use ordinary `@Serializable` data classes when you own the complete schema. Use Propigator when downstream modules, protocol extensions, or newer schema versions may add fields that must round-trip losslessly.
 
-- `common`: format-agnostic delegates and validation hooks.
-- `json`: `JsonObject` backed objects.
-- `yaml`: [yamlkt](https://github.com/him188/yamlkt) `YamlMap` backed objects.
+## Modules
 
-## Core Model
+| Module | Purpose |
+|---|---|
+| `core` | Format-neutral carrier, backing, flattening, delegates, and validation contracts |
+| `json` | Generic JSON carrier envelopes and native JSON property views |
+| `cbor` | Generic CBOR carrier envelopes and native CBOR property views |
+| `multi` | Experimental format-dispatching carrier envelopes, JSON/CBOR adapters, and advanced delegated backing |
 
-1. Keep the raw object map.
-2. Add read-only delegated Kotlin properties for fields you care about.
-3. Decode each property on demand with `kotlinx.serialization`.
-4. Serialize the same raw object again.
+`json` and `cbor` each depend on `core`, but not on each other. Neither requires the experimental `multi` module.
 
-For example, if an incoming JSON object contains a future field:
-
-```json
-{ "id": "42", "name": "Grace", "futureField": "preserved" }
-```
-
-and your wrapper only exposes `id` and `name`, `futureField` stays in `rawObject` and is serialized again unchanged. Delegated properties never rebuild, overwrite, or remove backing fields.
-
-## Using it in your Project
+## JSON
 
 ```kotlin
-dependencies {
-    implementation("at.asitplus.propigator:common:<version>")
-    implementation("at.asitplus.propigator:json:<version>")
-    implementation("at.asitplus.propigator:yaml:<version>")
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("at.asitplus.propigator:json:<version>")
+        }
+    }
 }
 ```
-
-Use `json` for `kotlinx-serialization-json` backed objects and `yaml` for yamlkt backed objects.
-
-## JSON Quick Start
-
-Define a wrapper around `JsonObjectBacked` and add typed properties with `jsonProperty()`.
-
-```kotlin
-@Serializable(with = PersonJsonObject.Serializer::class)
-class PersonJsonObject(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedValidated {
-    val id: String by jsonProperty()
-    val name: String by jsonProperty()
-    val active: Boolean by jsonProperty("is_active")
-    val nickname: String? by jsonProperty("nick")
-
-    override fun validate() {
-        id
-        name
-    }
-
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
-}
-```
-
-```kotlin
-val json = Json.Default
-
-val person = json.decodeFromString(
-    PersonJsonObject.serializer(),
-    """
-    {
-      "id": "42",
-      "name": "Grace",
-      "is_active": true,
-      "futureField": "preserved"
-    }
-    """.trimIndent()
-)
-
-val encoded = json.encodeToString(PersonJsonObject.serializer(), person)
-```
-
-The encoded JSON still contains `futureField`.
-
-## YAML Quick Start
-
-YAML uses the same pattern with `YamlObjectBacked` and `yamlProperty()`.
-
-```kotlin
-@Serializable(with = ServiceYamlObject.Serializer::class)
-class ServiceYamlObject(
-    raw: YamlMap,
-    yaml: Yaml = Yaml.Default,
-) : YamlObjectBacked(raw, yaml), ObjectBackedValidated {
-    val id: String by yamlProperty()
-    val endpoint: String by yamlProperty()
-    val description: String? by yamlProperty()
-
-    override fun validate() {
-        id
-        endpoint
-    }
-
-    object Serializer : KSerializer<ServiceYamlObject> by YamlObjectBackedSerializer(create = ::ServiceYamlObject)
-}
-```
-
-```kotlin
-val yaml = Yaml.Default
-
-val service = yaml.decodeFromString(
-    ServiceYamlObject.serializer(),
-    """
-    id: payments
-    endpoint: https://example.test/payments
-    x-vendor-option: keep-me
-    """.trimIndent()
-)
-
-val encoded = yaml.encodeToString(ServiceYamlObject.serializer(), service)
-```
-
-`x-vendor-option` is preserved.
-
-## Delegated Properties
-
-Required and nullable properties both use `jsonProperty()` or `yamlProperty()`.
-The property type, together with the supplied serializer, defines the nullability contract.
-
-All delegated properties are read-only. They decode values from the backing object when read, and they do not write values back.
-
-```kotlin
-val id: String by jsonProperty()
-val displayName: String by jsonProperty("display_name")
-val nickname: String? by jsonProperty("nick")
-```
-
-If no key is supplied, the Kotlin property name is used as the object key. If a key is supplied, that key is used instead.
-
-Reading a missing or explicit-null required property throws `SerializationException`:
-
-```kotlin
-val id = person.id // throws if "id" is absent or null
-```
-
-For nullable properties, missing keys and explicit format-native null values both read as `null`.
-The serializer must also be nullable; declaring the Kotlin property as `String?` gives the delegate a nullable serializer.
-
-JSON-backed properties can also define a read default for missing keys:
-
-```kotlin
-val active: Boolean by jsonProperty(defaultValue = true)
-val displayName: String by jsonProperty("display_name", defaultValue = "Anonymous")
-```
-
-This mirrors Kotlin serialization's absent-field default semantics for reads. It does not add the field to `rawObject`, and serialization still emits the preserved raw JSON object unchanged. If `Json { encodeDefaults = true }` should affect the serialized payload, construct or receive the backing `JsonObject` with those default fields already present.
-
-## Whole-Object Slices
-
-Use `jsonSlice()` or `yamlSlice()` to decode the entire backing object as an existing `@Serializable` type.
 
 ```kotlin
 @Serializable
-data class PublicClaims(
-    val iss: String,
-    val sub: String,
-    val aud: String,
+data class Person(
+    val id: String,
+    @SerialName("display_name")
+    val displayName: String? = null,
 )
 
-@Serializable(with = ClaimsJsonObject.Serializer::class)
-class ClaimsJsonObject(
-    raw: JsonObject,
-    json: Json = Json.Default,
-) : JsonObjectBacked(raw, json), ObjectBackedValidated {
-    val claims: PublicClaims by jsonSlice()
-    val nonce: String? by jsonProperty()
+val person: JsonBacked<Person> = json.JsonBacked(Person("42", "Arthur"))
 
-    override fun validate() {
-        claims
+val contextualPerson = with(json) {
+    JsonBacked(Person("42", "Arthur"))
+}
+```
+
+`JsonBacked<T>` has one generic custom serializer. For ordinary carriers, `T` is simply
+`@Serializable`: its generated serializer handles construction and validation, while the envelope
+retains the complete source `JsonObject`. Unknown properties therefore survive unchanged even when
+the carrier does not declare them. Constructed envelopes obtain their backing object by encoding
+the carrier once.
+
+```kotlin
+val decoded = json.decodeFromStringBacked<Person>(
+    """{"id":"42","future_claim":{"untouched":true}}"""
+)
+json.encodeToStringBacked(decoded) // future_claim is retained
+```
+
+For extensible protocols, keep the semantic contract separate from its standard serializable
+carrier:
+
+```kotlin
+interface JoseHeader {
+    val algorithm: String
+    val type: String?
+}
+
+@Serializable
+data class StandardJoseHeader(
+    @SerialName("alg") override val algorithm: String,
+    @SerialName("typ") override val type: String? = null,
+) : JoseHeader
+```
+
+Downstream carriers can reuse every base field through normal Kotlin delegation while remaining a
+flat JSON object:
+
+```kotlin
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = ApplicationJoseHeader.Serializer::class)
+data class ApplicationJoseHeader(
+    override val base: StandardJoseHeader,
+    val applicationClaim: String,
+) : JoseHeader by base, JsonFlattened<StandardJoseHeader> {
+
+    @Transient
+    override val type: String = requireNotNull(base.type)
+
+    object Serializer : JsonFlatteningSerializerTemplate<ApplicationJoseHeader>(
+        ApplicationJoseHeader.generatedSerializer()
+    )
+}
+```
+
+`JsonFlatteningSerializerTemplate` retains the compiler-generated serializer, flattens its `base`
+property during encoding, and reconstructs that nested shape internally during decoding. It works
+without `JsonBacked`; combining both features additionally preserves unknown source properties.
+
+Concrete backed types can delegate the same semantic interface and expose carrier properties
+without `.value`:
+
+```kotlin
+@Serializable(with = JsonBackedApplicationJoseHeader.Companion::class)
+class JsonBackedApplicationJoseHeader private constructor(
+    backed: JsonBacked<ApplicationJoseHeader>,
+) : JsonBacked<ApplicationJoseHeader>(backed), JoseHeader by backed.value {
+
+    companion object :
+        JsonBackedSerializerTemplate<ApplicationJoseHeader, JsonBackedApplicationJoseHeader>(
+            ApplicationJoseHeader.serializer(),
+            ::JsonBackedApplicationJoseHeader,
+        )
+}
+```
+
+Additional typed views can read undeclared claims directly from the retained object:
+
+```kotlin
+val JsonBacked<JoseHeader>.locale: String? by jsonProperty()
+```
+
+Both kinds of property then have the same call-site shape: `header.algorithm` comes from the
+carrier interface and `header.locale` comes from the retained backing object.
+
+## CBOR
+
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("at.asitplus.propigator:cbor:<version>")
+        }
     }
-
-    object Serializer : KSerializer<ClaimsJsonObject> by JsonObjectBackedSerializer(::ClaimsJsonObject)
 }
 ```
 
-`claims` is decoded from the whole JSON object, while `nonce` is decoded from the same raw object. Unknown fields are still preserved.
-
-YAML-backed objects provide the same pattern:
-
 ```kotlin
-val foo: Foo by yamlSlice()
+@Serializable
+data class Claims(
+    @CborLabel(1)
+    val algorithm: String,
+    val issuer: String? = null,
+)
+
+val claims = cbor.CborBacked(Claims("ES256"))
+val encoded = cbor.encodeToByteArrayBacked(claims)
+val decoded = cbor.decodeFromByteArrayBacked<Claims>(encoded)
+
+val CborBacked<Claims>.applicationClaim: String? by
+    cborProperty(CborInteger(-70_000L))
 ```
 
-## Validation
+`CborBacked<T>` mirrors `JsonBacked<T>`, including explicit-serializer construction, concrete
+subclass templates, and element/byte-array helpers. Its retained `CborMap` preserves integer,
+tagged, complex, and unknown keys plus map tags. Complex keys are kept out of the generated carrier
+decoder but remain untouched in the backing map.
 
-Propigator is designed for parse-not-validate workflows: parse the raw object, expose the fields your workflow needs, and keep the rest untouched. Required delegated fields are checked when read:
+## Experimental integrated multi-format support
 
-```kotlin
-val person = json.decodeFromString(PersonJsonObject.serializer(), payload)
-
-// Missing "name" fails here, when the property is needed.
-println(person.name)
-```
-
-For parse-time checks, implement `ObjectBackedValidated` and touch only the fields your component requires:
+Add the integrated multi-format module:
 
 ```kotlin
-override fun validate() {
-    id
-    name
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("at.asitplus.propigator:multi:<version>")
+        }
+    }
 }
 ```
 
-The format serializer calls `validate()` after decoding if the object implements `ObjectBackedValidated`.
-This is useful for open-ended formats such as JOSE, where one layer may need typed access to a few fields while preserving claims, headers, or extensions for a later validation layer.
-
-## Extension Properties
-
-You can add semantic fields outside the nominal wrapper class:
+`multi` exposes the JSON and CBOR carrier modules transitively. Ordinary multi-format values use a
+single serializable carrier and a generic `BorsonBacked<T>` envelope:
 
 ```kotlin
-val PersonJsonObject.locale: String? by jsonProperty("locale")
+import at.asitplus.propigator.multi.*
 
-val PersonJsonObject.displayLabel: String
-    get() = locale?.let { "$name ($it)" } ?: name
+@OptIn(ExperimentalMultiFormatApi::class)
+@Serializable
+data class XoseHeader(
+    @SerialName("alg")
+    @CborLabel(1)
+    val algorithm: String,
+)
+
+val jsonHeader = json.BorsonBacked(XoseHeader("ES256"))
+val cborHeader = cbor.BorsonBacked(XoseHeader("ES256"))
 ```
 
-## Raw Objects and Serializers
+`BorsonFlatteningSerializerTemplate` flattens delegated base carriers in both formats.
+`BorsonBackedSerializerTemplate` gives concrete backed subclasses the same direct-property pattern
+as JSON and CBOR. Unknown values remain lossless in their native source format.
 
-Use `rawObject` to inspect, pass through, or debug the complete backing object:
+Backing-only properties may still select native keys and serializers by format:
 
 ```kotlin
-val raw: JsonObject = person.rawObject
+val MultiFormatBacked<XoseHeader>.applicationClaim: String? by
+    multiFormatProperty<String?>(
+        JsonObjectFormat propertyKey "application_claim",
+        CborMapFormat propertyKey CborInteger(-70_000L),
+    )
 ```
 
-For JSON, `rawObject` is a `JsonObject`; for YAML, it is a `YamlMap`. To create a modified payload, build a new format object and wrap it.
-
-Attach a serializer to each wrapper type:
-
-```kotlin
-@Serializable(with = PersonJsonObject.Serializer::class)
-class PersonJsonObject(...) : JsonObjectBacked(...) {
-    object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(::PersonJsonObject)
-}
-```
-
-The serializer wraps the raw object on decode and serializes the same raw object on encode. Delegated properties are semantic accessors, not constructor properties.
-
-Each wrapper keeps the `Json` or `Yaml` instance passed to its constructor. Pass a custom format to the object-backed serializer when delegated properties need non-default settings or serializers:
+For formats that ordinary carrier annotations cannot express, the advanced
+`MultiFormatBackedObject` API remains available. Format sets compose, individual properties may
+override their serializer, and format-specific descriptors come from `serializerFor(format)`:
 
 ```kotlin
-private val personJson = Json { ignoreUnknownKeys = true }
+val threeFormats = JsonCborFormats + derFormat
 
-object Serializer : KSerializer<PersonJsonObject> by JsonObjectBackedSerializer(
-    create = ::PersonJsonObject,
-    json = personJson,
+val count: Int by multiFormatProperty(
+    JsonObjectFormat propertyKey "count",
+    DerObjectFormat.property(
+        key = Asn1.Int(1),
+        serializer = IntAsAsn1RealSerializer,
+    ),
 )
 ```
 
-Encoding rejects mismatching format configuration content because the wrapper's configured format owns the serialization shape. Separate `Json` or `Yaml` instances with the same relevant settings are accepted.
+Propigator never transcodes arbitrary unknown JSON, CBOR, or ASN.1 entries.
 
-## Choosing Data Classes vs Propigator
+## Limitations
 
-Use regular `@Serializable` data classes when:
-
-- Your service owns the full schema.
-- Unknown fields should be ignored or rejected.
-- You want constructor-based validation and generated output from declared properties.
-
-Use Propigator when:
-
-- You need to preserve unknown fields.
-- You are building downstream tooling for someone else's schema.
-- The schema is extensible or versioned.
-- You want a typed read-only view over a format object.
-
-## Current Limitations
-
-- Propigator wraps object/map payloads, not arbitrary top-level scalar values.
-- YAML element conversion is intentionally simple: individual values are rendered through YAML and decoded again with `yamlkt`.
-- Delegated properties are runtime accessors. They are not constructor properties and do not appear as separate generated serialization fields.
-- `ObjectBackedValidated` validates only what your `validate()` function reads.
-
-## Contributing
-
-External contributions are greatly appreciated.
-Please observe the contribution guidelines (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+- Backing values must be object/map shaped.
+- A backed instance retains its source format; multi-format support is not transcoding.
+- The annotated serializer has one default descriptor; use `serializerFor(format)` when a format needs its own.
+- Advanced delegated properties are runtime accessors, not generated serialization fields.
 
 ---
 

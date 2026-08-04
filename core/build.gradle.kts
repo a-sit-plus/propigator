@@ -1,14 +1,13 @@
 import at.asitplus.gradle.*
-
 plugins {
     id("at.asitplus.propigator.buildlogic")
 }
 
 propigatorConventions {
-    android("at.asitplus.propigator.json")
+    android("at.asitplus.propigator.core")
     mavenPublish(
-        name = "Propigator JSON",
-        description = "JSON-backed typed properties over untamed data"
+        name = "Propigator Core",
+        description = "Format-neutral typed properties over untamed data"
     )
 }
 
@@ -17,8 +16,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":core"))
-            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.serialization.core)
         }
     }
 }

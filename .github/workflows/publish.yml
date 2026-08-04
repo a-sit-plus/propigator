@@ -18,9 +18,10 @@ jobs:
       - name: Publish Propigator modules serially to Sonatype
         run: |
           ./gradlew clean
-          ./gradlew :common:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :core:publishToSonatype closeSonatypeStagingRepository
           ./gradlew :json:publishToSonatype closeSonatypeStagingRepository
-          ./gradlew :yaml:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :cbor:publishToSonatype closeSonatypeStagingRepository
+          ./gradlew :multi:publishToSonatype closeSonatypeStagingRepository
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.PUBLISH_SIGNING_KEYID }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.PUBLISH_SIGNING_KEY }}

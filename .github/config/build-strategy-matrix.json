@@ -1,16 +1,20 @@
 {
   "include": [
     {
-      "module": "common",
-      "artifactName": "common"
+      "module": "core",
+      "artifactName": "core"
+    },
+    {
+      "module": "multi",
+      "artifactName": "multi"
     },
     {
       "module": "json",
       "artifactName": "json"
     },
     {
-      "module": "yaml",
-      "artifactName": "yaml"
+      "module": "cbor",
+      "artifactName": "cbor"
     }
   ]
 }

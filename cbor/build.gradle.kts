@@ -5,10 +5,10 @@ plugins {
 }
 
 propigatorConventions {
-    android("at.asitplus.propigator.json")
+    android("at.asitplus.propigator.cbor")
     mavenPublish(
-        name = "Propigator JSON",
-        description = "JSON-backed typed properties over untamed data"
+        name = "Propigator CBOR",
+        description = "CBOR-backed typed properties over untamed data"
     )
 }
 
@@ -18,7 +18,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core"))
-            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.serialization.cbor)
         }
     }
 }

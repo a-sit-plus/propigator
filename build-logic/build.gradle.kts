@@ -21,15 +21,10 @@ dependencies {
     implementation("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:$kotlinVer")
     implementation(libs.agp)
     implementation(libs.asp)
-    implementation(libs.sbombastic)
 }
 
 repositories {
-    mavenLocal {
-        content {
-            includeGroup("at.asitplus.gradle")
-        }
-    }
+    mavenLocal()
     maven {
         url = uri("https://raw.githubusercontent.com/a-sit-plus/gradle-conventions-plugin/mvn/repo")
         name = "aspConventions"

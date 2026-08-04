@@ -1,10 +1,35 @@
 # Changelog
 ### Unreleased
-- Removed write-through backing logic. Backed properties are now read-only delegates over the preserved raw object.
-- Removed the format-agnostic backing codec layer; JSON and YAML wrappers now decode values directly with their configured format instance.
-- Updated backed property nullability so nullable fields are declared with nullable Kotlin types; this keeps the same optional-field functionality without a separate nullable delegate.
-- Captured the default JSON/YAML format at object-backed serializer construction time and compare format configuration content, not format instance identity, before serialization. Serializer modules are intentionally not part of this comparison.
-- Added JSON-backed property defaults via `jsonProperty(defaultValue = ...)` for absent keys. Serialization still emits the preserved raw `JsonObject` unchanged.
+- Replaced JSON-backed subclasses, delegated members, per-class factories, and per-class serializers
+  with ordinary serializable carriers inside one generic `JsonBacked<T>` envelope.
+- Added carrier contracts for compile-time downstream schema feedback and nullable-to-non-null
+  property refinement.
+- Retained unknown JSON properties losslessly even when the caller's `Json` rejects unknown keys.
+- Added reusable JSON flattening for serializable carriers that reuse a base carrier through Kotlin
+  interface delegation.
+- Added a reusable serializer template for concrete `JsonBacked` subclasses that delegate carrier
+  interfaces and expose both carrier and backing-only properties directly.
+- Added concise `Json` element and string helpers for generic backed envelopes.
+- Added explicit-serializer construction for `JsonBacked` envelopes.
+- Reworked CBOR around ordinary serializable carriers in a generic `CborBacked<T>` envelope while
+  preserving native keys and tags.
+- Added generic `MultiFormatBacked<T>` and `BorsonBacked<T>` carrier envelopes, cross-format
+  flattening, concrete subclass templates, and concise JSON/CBOR helpers.
+- Pulled native-envelope and flattened-carrier contracts into `core`.
+- Made envelope construction format-owned, with receiver and context-parameter forms, and moved
+  concrete backed construction to context-aware companion factories.
+- Added writable member delegates with caller-controlled setter visibility.
+- Added one-shot, type-safe protected initialization for read-only backed properties.
+- Added automatic validation for non-nullable member delegates.
+- Added native CBOR keys, including tagged and complex keys.
+- Added composable multi-format adapters and the JSON/CBOR convenience set.
+- Added per-format property serializers and format-specific whole-object serializers.
+- Made backed serializer templates open so companions can inherit them directly.
+- Added immutable downstream specialization examples for JOSE and COSE.
+- Packaged integrated multi-format support and its JSON/CBOR bridge in the experimental `multi` module.
+- Added delegated property defaults that do not alter serialized backing objects.
+- Temporarily disabled SBOM generation due to incorrect native carrier packaging in SBOMbastic 0.0.3.
+- Removed the unfinished YAML module, whole-object slices, and strict unions.
 
 ### Version 0.0.1
 - Initial version

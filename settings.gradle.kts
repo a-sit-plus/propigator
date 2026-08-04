@@ -1,6 +1,7 @@
 pluginManagement {
     repositories {
         google()
+        mavenLocal()
         mavenCentral()
         gradlePluginPortal()
         maven("https://central.sonatype.com/repository/maven-snapshots/")
@@ -31,6 +32,7 @@ includeBuild("build-logic")
 
 rootProject.name = "propigator"
 
-include(":common")
+include(":core")
+include(":multi")
 include(":json")
-include(":yaml")
+include(":cbor")

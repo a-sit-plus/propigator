@@ -5,12 +5,10 @@ package at.asitplus.gradle
 
 import at.asitplus.gradle.at.asitplus.gradle.addTestExtensions
 import com.android.build.api.dsl.androidLibrary
-import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.tasks.testing.AbstractTestTask
-import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.*
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -22,17 +20,6 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import java.io.File
 import java.util.*
 
-/**
- * Gradle convention plugin for awesn1. Handles:
- * * plugin application
- * * setting artefact coordinates and version
- * * maven publish
- * * hacks to make swift interop ACTUALLY work
- * * android wiring
- * * large test heap
- * * setting up all targets
- * * silencing warnings on non-apple system about unbuildable targets
- */
 class PropigatorConventionsPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         target.keepAndroidJvmTarget = true // keep androidJvmMain wiring even if no AGP is applied
@@ -42,7 +29,6 @@ class PropigatorConventionsPlugin : Plugin<Project> {
         if (target.hasAndroidSdk()) pluginManager.apply("com.android.kotlin.multiplatform.library")
         pluginManager.apply("signing")
         pluginManager.apply("at.asitplus.gradle.conventions")
-        pluginManager.apply("at.asitplus.gradle.sbombastic")
         pluginManager.apply("de.infix.testBalloon")
     }
 }
@@ -51,15 +37,10 @@ class PropigatorConventionsExtension(private val project: Project) {
     init {
         val propigatorVersion: String by project.extra
         project.version = propigatorVersion
-        //if we do this properly, cinterop (swift-klib) blows up, so we hack!
         project.afterEvaluate {
-            //work around IDEA BUG not finding any test deps on non-JVM!
-            (project.kotlinExtension as KotlinMultiplatformExtension).sourceSets.filter { it.name.endsWith("Test") }
-                .forEach { it.dependencies { addTestExtensions() } }
             tasks.withType<AbstractTestTask>().configureEach {
                 failOnNoDiscoveredTests.set(false)
             }
-            tasks.withType<Test>().configureEach { maxHeapSize = "10G" }
         }
         project.silence()
 
@@ -70,12 +51,6 @@ class PropigatorConventionsExtension(private val project: Project) {
             }
         }
 
-        project.extensions.findByType<KotlinMultiplatformAndroidComponentsExtension>()?.apply {
-            onVariants { v ->
-                // Configure the instrumented-test APK only
-                v.androidTest?.manifestPlaceholders?.put("testLargeHeap", "true")
-            }
-        }
     }
 
     fun mavenPublish(name: String, description: String) = project.afterEvaluate {
@@ -138,6 +113,12 @@ class PropigatorConventionsExtension(private val project: Project) {
             useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
             sign(extensions.getByType<PublishingExtension>().publications)
         }
+
+        tasks.register("publishAllPublicationsToMavenLocal") {
+            this.group = "publishing"
+            this.description = "Publishes all Maven publications produced by this project to the local Maven cache."
+            this.dependsOn("publishToMavenLocal")
+        }
     }
 
 
@@ -152,37 +133,6 @@ class PropigatorConventionsExtension(private val project: Project) {
                 minSdkOverride?.let {
                     project.logger.lifecycle("  \u001b[7m\u001b[1m" + "Overriding Android defaultConfig minSDK to $minSdkOverride for project ${project.name}" + "\u001b[0m")
                     minSdk = it
-                }
-                withDeviceTestBuilder {
-                    sourceSetTreeName = "test"
-                }.configure {
-                    instrumentationRunnerArguments["timeout_msec"] = "2400000"
-                    managedDevices {
-                        localDevices {
-                            create("pixelAVD").apply {
-                                device = "Pixel 9 Pro" //more ram for more tests
-                                apiLevel = 35
-                                systemImageSource = "aosp-atd"
-                            }
-                        }
-                    }
-                }
-                packaging {
-                    listOf(
-                        "org/bouncycastle/pqc/crypto/picnic/lowmcL5.bin.properties",
-                        "org/bouncycastle/pqc/crypto/picnic/lowmcL3.bin.properties",
-                        "org/bouncycastle/pqc/crypto/picnic/lowmcL1.bin.properties",
-                        "org/bouncycastle/x509/CertPathReviewerMessages_de.properties",
-                        "org/bouncycastle/x509/CertPathReviewerMessages.properties",
-                        "org/bouncycastle/pkix/CertPathReviewerMessages_de.properties",
-                        "org/bouncycastle/pkix/CertPathReviewerMessages.properties",
-                        "/META-INF/{AL2.0,LGPL2.1}",
-                        "win32-x86-64/attach_hotspot_windows.dll",
-                        "win32-x86/attach_hotspot_windows.dll",
-                        "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
-                        "META-INF/licenses/*",
-                        //noinspection WrongGradleMethod
-                    ).forEach { resources.excludes.add(it) }
                 }
             }
         }
@@ -261,8 +211,6 @@ fun KotlinMultiplatformExtension.propigatorTargets(disableWasm: Boolean = false)
         watchosSimulatorArm64()
         watchosArm32()
         watchosArm64()
-        tvosSimulatorArm64()
-        tvosArm64()
     }
 
     if (project.hasAndroidSdk()) {
